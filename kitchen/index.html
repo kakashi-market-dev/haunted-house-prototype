@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Kitchen module preview</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Tahoma,Arial,sans-serif;color:#eee;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:0;right:0;top:calc(8px + env(safe-area-inset-top));text-align:center;font-size:13px;opacity:.75;pointer-events:none;text-shadow:0 1px 4px #000}
+#ret{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,255,255,.55);pointer-events:none}
+#lab{position:fixed;left:0;right:0;top:calc(50% + 22px);text-align:center;font-size:17px;color:#ffe9b0;text-shadow:0 1px 6px #000;pointer-events:none;min-height:24px}
+#load{position:fixed;inset:0;background:#050403;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s;z-index:5}
+#load i{display:block;width:220px;height:3px;background:#222;margin-top:14px}#load b{display:block;height:3px;width:0;background:#c9a96a}
+.stick{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));width:120px;height:120px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05)}
+.stick i{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3)}
+#act{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(36px + env(safe-area-inset-bottom));width:84px;height:84px;border-radius:50%;border:2px solid rgba(255,230,170,.7);background:rgba(120,30,20,.35);color:#fff;font-size:15px}
+body.desk .stick,body.desk #act{display:none}
+</style></head><body>
+<div id="load"><div id="lt">جارٍ تحميل المطبخ...</div><i><b id="lb"></b></i></div>
+<canvas id="c"></canvas><div id="ret"></div><div id="lab"></div><div id="hud">اسحب للنظر · عصا للحركة · اضغط على الباب أو زر الفتح · WASD + الفأرة + E</div>
+<div class="stick" id="stick"><i id="knob"></i></div><button id="act">فتح</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="kitchen.js"></script>
+<script>
+(function () {
+  var P = new URLSearchParams(location.search), q = P.get('q') === 'high' || P.get('q') === '4k' ? '4k' : (P.get('q') === 'low' || P.get('q') === '1k' ? '1k' : '2k');
+  var cv = document.getElementById('c'), R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+  R.setPixelRatio(Math.min(devicePixelRatio || 1, q === '1k' ? 1.25 : 1.75)); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.0;
+  R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+  var scene = new THREE.Scene(); scene.background = new THREE.Color(0x050405);
+  var cam = new THREE.PerspectiveCamera(70, 1, 0.05, 30); cam.rotation.order = 'YXZ';
+  var K = KitchenModule.build(THREE, { quality: q, renderer: R, floorTexSize: P.get('floor') ? +P.get('floor') : undefined, onProgress: function (d, t) { document.getElementById('lb').style.width = (100 * d / t) + '%'; } });
+  scene.add(K.group);
+  var st = { x: K.spawn.x, z: K.spawn.z, yaw: Math.PI * 0 + 0, pitch: -0.05 }; st.yaw = 0; // looks toward -z (the cabinets)
+  var keys = {}, joy = { x: 0, y: 0 }, lookId = null, last = null, tapStart = null;
+  function resize() { R.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
+  addEventListener('resize', resize); resize();
+  if (!('ontouchstart' in window)) document.body.classList.add('desk');
+  addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyE') interact(); }); addEventListener('keyup', function (e) { keys[e.code] = 0; });
+  // look: drag on the right 60% of the screen; click/tap without moving = interact at that point
+  var ray = new THREE.Raycaster(), v2 = new THREE.Vector2();
+  function pickAt(cx, cy) { v2.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(v2, cam); return K.pick(ray, 2.6); }
+  cv.addEventListener('pointerdown', function (e) { if (e.clientX < innerWidth * 0.4 && e.pointerType === 'touch') return; lookId = e.pointerId; tapStart = { x: e.clientX, y: e.clientY, moved: 0 }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', function (e) { if (e.pointerId !== lookId) return; var dx = e.movementX || 0, dy = e.movementY || 0; if (e.pointerType === 'touch') { dx = e.clientX - (tapStart.lx === undefined ? e.clientX : tapStart.lx); dy = e.clientY - (tapStart.ly === undefined ? e.clientY : tapStart.ly); } tapStart.lx = e.clientX; tapStart.ly = e.clientY; tapStart.moved += Math.abs(dx) + Math.abs(dy); st.yaw -= dx * 0.0045; st.pitch = Math.max(-1.2, Math.min(1.2, st.pitch - dy * 0.0045)); });
+  cv.addEventListener('pointerup', function (e) { if (e.pointerId !== lookId) return; lookId = null; if (tapStart && tapStart.moved < 10) { var it = pickAt(e.clientX, e.clientY); if (it) it.open = !it.open; } });
+  // joystick
+  var sk = document.getElementById('stick'), kn = document.getElementById('knob'), sid = null;
+  sk.addEventListener('pointerdown', function (e) { sid = e.pointerId; sk.setPointerCapture(e.pointerId); mv(e); }); sk.addEventListener('pointermove', function (e) { if (e.pointerId === sid) mv(e); });
+  function end() { sid = null; joy.x = joy.y = 0; kn.style.transform = ''; } sk.addEventListener('pointerup', end); sk.addEventListener('pointercancel', end);
+  function mv(e) { var r = sk.getBoundingClientRect(), x = (e.clientX - r.left - 60) / 50, y = (e.clientY - r.top - 60) / 50, l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } joy.x = x; joy.y = y; kn.style.transform = 'translate(' + x * 40 + 'px,' + y * 40 + 'px)'; }
+  function interact() { var it = pickAt(innerWidth / 2, innerHeight / 2); if (it) it.open = !it.open; }
+  document.getElementById('act').addEventListener('click', interact);
+  function collide(nx, nz) {
+    var b = K.bounds, r = 0.22; nx = Math.max(b.minX, Math.min(b.maxX, nx)); nz = Math.max(b.minZ, Math.min(b.maxZ, nz));
+    if (nz > K.size.d / 2 - 0.2 && Math.abs(nx - K.exitDoor.x) > 0.35) nz = K.size.d / 2 - 0.2;
+    for (var i = 0; i < K.colliders.length; i++) { var c = K.colliders[i]; if (nx > c.minX - r && nx < c.maxX + r && nz > c.minZ - r && nz < c.maxZ + r) return null; } return [nx, nz];
+  }
+  function frame(t) {
+    requestAnimationFrame(frame); var dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016; last = t;
+    var f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
+    var sp = 1.7 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp;
+    var a = collide(st.x + dx, st.z); if (a) st.x = a[0]; var b = collide(st.x, st.z + dz); if (b) st.z = b[1];
+    cam.position.set(st.x, 1.6 + Math.sin(t / 380) * 0.0, st.z); cam.rotation.set(st.pitch, st.yaw, 0);
+    K.update(dt); var it = pickAt(innerWidth / 2, innerHeight / 2); document.getElementById('lab').textContent = it ? (it.open ? 'إغلاق: ' : 'فتح: ') + it.label : '';
+    R.render(scene, cam); frame.n = (frame.n || 0) + 1;
+  }
+  // debug / screenshot hooks
+  window.KP = { K: K, cam: cam, st: st, R: R, scene: scene, ready: false, view: function (x, z, yawDeg, pitchDeg) { st.x = x; st.z = z; st.yaw = yawDeg * Math.PI / 180; st.pitch = pitchDeg * Math.PI / 180; }, info: function () { return JSON.stringify({ calls: R.info.render.calls, tris: R.info.render.triangles, tex: R.info.memory.textures, frames: frame.n, prog: K.progress }); } };
+  if (P.get('open') === 'all') K.interactives.forEach(function (i) { i.open = true; });
+  requestAnimationFrame(frame);
+  var chk = setInterval(function () { if (K.progress.done >= K.progress.total) { clearInterval(chk); window.KP.ready = true; setTimeout(function () { var l = document.getElementById('load'); l.style.opacity = 0; setTimeout(function () { l.style.display = 'none'; }, 700); }, 300); } }, 200);
+})();
+</script></body></html>
