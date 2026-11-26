@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<link rel="icon" href="data:,">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -118,7 +119,9 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 var renderer = new THREE.WebGLRenderer({ antialias: !DBG.low, powerPreference: 'high-performance' });
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DBG.low ? 1 : 1.5));
+var PR_LV = [1.5, 1.25, 1, 0.8, 0.65], prI = DBG.low ? 2 : 0, prMax = Math.min(window.devicePixelRatio || 1, 1.5);
+function curPR() { return Math.min(prMax, PR_LV[prI]); }
+renderer.setPixelRatio(curPR());
 renderer.setSize(innerWidth, innerHeight);
 var SHADOWS = !DBG.noshadow && !DBG.top && !DBG.test;
 renderer.shadowMap.enabled = SHADOWS; renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -189,11 +192,11 @@ function pbrC(key, tint, ns, rough) {
 }
 function lam(c, r, mt) { return new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? 0.85 : r, metalness: mt || 0 }); }
 var mFloor = pbrC('floor', 0x8a7a70, 1.3, 0.85), mCarpet = pbrC('carpet', 0x6a4040, 1.0, 1), mTile = pbrC('tile', 0x8c9490, 1.2, 0.5),
-  mCeil = pbrC('ceil', 0x6a655e, 1.0, 1), mWall = pbrC('wall', 0x9a9088, 1.4, 0.95), mConc = pbrC('conc', 0x77756f, 1.2, 0.95),
-  mBrick = pbrC('brick', 0x77706a, 1.5, 0.95), mStair = pbrC('wood', 0x7a6a60, 1.2, 0.9), mRust = pbrC('rust', 0x3c2c26, 1.2, 0.85),
+  mCeil = pbrC('ceil', 0x6a655e, 1.0, 1), mWall = pbrC('wall', 0x7c9c98, 1.4, 0.95), mConc = pbrC('conc', 0x77756f, 1.2, 0.95),
+  mBrick = pbrC('brick', 0x77706a, 1.5, 0.95), mStair = pbrC('wood', 0x7a6a60, 1.2, 0.9), mRust = pbrC('rust', 0x2c2420, 1.2, 0.85),
   mWood = pbrC('wood', 0x8a6a55, 1.0, 0.8), mDark = pbrC('wood', 0x4a3a30, 1.0, 0.85), mGround = pbrC('ground', 0x555a50, 1.0, 1),
   mRoof = pbrC('conc', 0x2a2a30, 1.0, 0.9);
-var mFab = lam(0x5a2528, 1), mFab2 = lam(0x2e3a44, 1), mMetal = lam(0x70737a, 0.5, 0.6), mWhite = lam(0xb8b2a6, 0.55), mBook = lam(0x3a2a40, 0.9),
+var mFab = lam(0x3a1d20, 1), mFab2 = lam(0x2e3a44, 1), mMetal = lam(0x70737a, 0.5, 0.6), mWhite = lam(0xb8b2a6, 0.55), mBook = lam(0x3a2a40, 0.9),
   mBlack = lam(0x0e0e10, 0.7), mGold = lam(0x9a8040, 0.4, 0.7), mGlass = lam(0x203038, 0.2, 0.2), mBone = lam(0xc8c0ae, 0.8);
 var mPaper = new THREE.MeshStandardMaterial({ color: 0xe8dcb8, emissive: 0x3a3020, roughness: 1 });
 var mFlame = new THREE.MeshBasicMaterial({ color: 0xffb050 });
@@ -1134,10 +1137,22 @@ function update(dt) {
   updatePrompt(); lvlLabel();
 }
 
-var last = performance.now();
+var last = performance.now(), aT = 0, aN = 0, aCool = 0;
+function adapt(n) {
+  if (!S.started || DBG.test || DBG.top) { aT = n; aN = 0; return; }
+  aN++;
+  if (n - aT < 1500) return;
+  var fps = aN * 1000 / (n - aT); aT = n; aN = 0;
+  if (n < aCool) return;
+  if (fps < 28 && prI < PR_LV.length - 1) { prI++; renderer.setPixelRatio(curPR()); renderer.setSize(innerWidth, innerHeight); aCool = n + 2500; }
+  else if (fps < 28 && prI === PR_LV.length - 1 && SHADOWS && flash.castShadow) { flash.castShadow = false; aCool = n + 2500; }
+  else if (fps > 56 && prI > 0 && curPR() < prMax) { prI--; renderer.setPixelRatio(curPR()); renderer.setSize(innerWidth, innerHeight); aCool = n + 6000; }
+  window.__fps = fps; window.__pr = curPR();
+}
 function loop() {
   var n = performance.now(), dt = Math.min(0.05, (n - last) / 1000); last = n;
   update(dt); renderer.render(scene, camera);
+  adapt(n);
   requestAnimationFrame(loop);
 }
 
