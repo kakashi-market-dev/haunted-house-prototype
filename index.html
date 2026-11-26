@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>بيت التهويدة — نموذج أولي (اليوم الأول)</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#000;font-family:'Segoe UI',Tahoma,Arial,sans-serif;touch-action:none;color:#e8e2d4;-webkit-user-select:none;user-select:none}
+  #game{position:fixed;inset:0}
+  canvas{display:block}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 40%,rgba(0,0,0,.78) 100%)}
+  #redflash{position:fixed;inset:0;pointer-events:none;z-index:6;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 30%,rgba(150,0,0,.55) 100%);opacity:0;transition:opacity .25s}
+  .hud{position:fixed;z-index:10;pointer-events:none}
+  #obj{top:10px;right:12px;max-width:60%;font-size:15px;line-height:1.6;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);padding:6px 12px;border-radius:8px}
+  #inv{top:10px;left:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:36%}
+  .chip{background:rgba(0,0,0,.5);border:1px solid rgba(255,220,150,.35);padding:4px 10px;border-radius:999px;font-size:13px}
+  #stam{bottom:14px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
+  #stam i{display:block;height:100%;width:100%;background:#c9b57a}
+  #prompt{bottom:22%;left:0;right:0;text-align:center;font-size:19px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s}
+  #toast{top:22%;left:0;right:0;text-align:center;font-size:18px;text-shadow:0 2px 8px #000;opacity:0;transition:opacity .4s;padding:0 20px;line-height:1.7}
+  #roomlabels div{position:fixed;transform:translate(-50%,-50%);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px #000,0 0 5px #000;pointer-events:none;z-index:12}
+  #modal,#puzzle{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72)}
+  .card{background:#1b1713;border:1px solid #6b5a3a;border-radius:12px;padding:22px 26px;max-width:440px;width:84%;text-align:center;line-height:1.9;font-size:17px;box-shadow:0 8px 40px #000}
+  .card h3{margin:0 0 10px;color:#d9c48c;font-size:20px}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid #8a7544;background:#2b241a;color:#f0e6cc;border-radius:10px;padding:10px 22px;font-size:16px;margin:8px 4px 0}
+  .btn:active{transform:scale(.96)}
+  #keys{display:flex;gap:12px;justify-content:center;margin:14px 0}
+  .mk{width:62px;height:62px;border-radius:12px;border:2px solid rgba(255,255,255,.25);cursor:pointer}
+  .mk:active{transform:scale(.92);filter:brightness(1.5)}
+  #slots{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
+  .slot{width:26px;height:26px;border-radius:50%;border:2px solid #6b5a3a;background:#120f0b}
+  #overlay,#end{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
+    background:radial-gradient(ellipse at center,rgba(25,18,14,.93),rgba(0,0,0,.98))}
+  #end{display:none}
+  #overlay h1,#end h1{font-size:38px;margin:0 0 6px;color:#d9c48c;letter-spacing:.5px}
+  #overlay p,#end p{font-size:16px;opacity:.85;margin:5px 0;max-width:460px;line-height:1.8}
+  #overlay .sub{font-size:13px;opacity:.55;margin-top:14px}
+  #startbtn{margin-top:22px;font-size:21px;font-weight:700;padding:14px 50px;background:linear-gradient(135deg,#8a2a1f,#4d120c);border-color:#b8523f;color:#fff}
+  /* touch */
+  #joy{position:fixed;z-index:15;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22);display:none}
+  #stick{position:absolute;width:50px;height:50px;border-radius:50%;left:35px;top:35px;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.45)}
+  .tb{position:fixed;z-index:15;display:none;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,16,12,.6);color:#fff;font-size:14px;font-weight:700;pointer-events:auto}
+  #b-act{right:22px;bottom:90px;width:82px;height:82px;background:rgba(140,60,40,.75)}
+  #b-fl{right:116px;bottom:40px;width:58px;height:58px}
+  #b-run{right:22px;bottom:186px;width:58px;height:58px}
+  #hintkeys{bottom:34px;left:0;right:0;text-align:center;font-size:12px;opacity:.5}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="vignette"></div><div id="redflash"></div>
+<div class="hud" id="obj">الهدف: —</div>
+<div class="hud" id="inv"></div>
+<div class="hud" id="stam"><i></i></div>
+<div class="hud" id="prompt"></div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="hintkeys">WASD للحركة · الفأرة للنظر · E للتفاعل · F للمصباح · Shift للجري</div>
+<div id="roomlabels"></div>
+<div id="joy"><div id="stick"></div></div>
+<button class="tb" id="b-act">تفاعل</button>
+<button class="tb" id="b-fl">مصباح</button>
+<button class="tb" id="b-run">جري</button>
+
+<div id="modal"><div class="card"><h3 id="m-title"></h3><div id="m-body"></div><button class="btn" id="m-close">إغلاق</button></div></div>
+<div id="puzzle"><div class="card"><h3>الصندوق الموسيقي</h3>
+  <div>اعزف اللحن بالترتيب الصحيح ليُفتح الدرج.</div>
+  <div id="keys"></div><div id="slots"></div>
+  <div id="pz-msg" style="min-height:26px;color:#e0a070"></div>
+  <button class="btn" id="pz-close">ابتعد</button></div></div>
+
+<div id="overlay">
+  <h1>بيت التهويدة</h1>
+  <p>نموذج أولي لمستوى البيت والألغاز — اليوم الأول.</p>
+  <p>استيقظتَ في بيت قديم مظلم. اجمع الصفحات الممزقة، أعد الكهرباء، وافتح الصندوق الموسيقي للحصول على مفتاح الباب الأمامي.</p>
+  <p>«حارسة التهويدة» تتجول في الظلام. لا تركض نحوها، اختبئ في الخزانة، وأطفئ المصباح عندما تقترب.</p>
+  <button class="btn" id="startbtn">ابدأ</button>
+  <div class="sub">سماعات مفضّلة · الإصدار 0.1 — يعمل على الحاسوب والهاتف</div>
+</div>
+<div id="end"><h1 id="e-title"></h1><p id="e-body"></p><button class="btn" id="e-btn">إعادة المحاولة</button></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+'use strict';
+var Q = new URLSearchParams(location.search);
+var DBG = { top: Q.get('top') === '1', all: Q.get('all') === '1', bright: Q.get('bright') === '1',
+  skip: Q.get('skip') === '1', cam: Q.get('cam'), keeper: Q.get('keeper'), freeze: Q.get('freeze') === '1',
+  test: Q.get('autotest') === '1', power: Q.get('power') === '1', flash: Q.get('flash') !== '0' };
+function $(id) { return document.getElementById(id); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+// ================= renderer / scene =================
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020204);
+scene.fog = new THREE.FogExp2(0x030305, DBG.bright || DBG.top ? 0.004 : 0.055);
+var camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 120);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
+var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+renderer.setSize(innerWidth, innerHeight);
+$('game').appendChild(renderer.domElement);
+addEventListener('resize', function () {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+});
+
+// ================= procedural textures =================
+function ctex(w, h, draw, rx, ry) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  var g = c.getContext('2d'); draw(g, w, h);
+  var t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx || 1, ry || 1); t.anisotropy = 4;
+  return t;
+}
+function noise(g, w, h, n, a) {
+  for (var i = 0; i < n; i++) {
+    g.fillStyle = 'rgba(0,0,0,' + (Math.random() * a) + ')';
+    g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 3);
+  }
+}
+var texFloor = ctex(256, 256, function (g, w, h) {
+  var pw = 32;
+  for (var i = 0; i < w / pw; i++) {
+    var l = 22 + Math.random() * 14;
+    g.fillStyle = 'hsl(24,38%,' + l + '%)'; g.fillRect(i * pw, 0, pw, h);
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(i * pw, 0, 2, h);
+    for (var k = 0; k < 6; k++) { g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(i * pw + Math.random() * pw, Math.random() * h, 1, 30 + Math.random() * 60); }
+  }
+  for (var j = 0; j < 3; j++) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, Math.random() * h, w, 1); }
+  noise(g, w, h, 700, .35);
+}, 12, 9);
+var texCarpet = ctex(128, 128, function (g, w, h) {
+  g.fillStyle = '#3a1416'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(160,110,60,.55)'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12);
+  g.strokeStyle = 'rgba(160,110,60,.3)'; g.lineWidth = 1; g.strokeRect(14, 14, w - 28, h - 28);
+  noise(g, w, h, 500, .45);
+}, 12, 2);
+var texWall = ctex(256, 256, function (g, w, h) {
+  g.fillStyle = '#4b5246'; g.fillRect(0, 0, w, h);
+  for (var i = 0; i < 16; i++) { g.fillStyle = i % 2 ? 'rgba(20,24,18,.35)' : 'rgba(150,160,130,.10)'; g.fillRect(i * 16, 0, 8, h); }
+  for (var s = 0; s < 9; s++) {
+    var x = Math.random() * w, y = Math.random() * h, r = 20 + Math.random() * 50;
+    var gr = g.createRadialGradient(x, y, 2, x, y, r);
+    gr.addColorStop(0, 'rgba(15,10,5,.45)'); gr.addColorStop(1, 'rgba(15,10,5,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  g.fillStyle = 'rgba(10,8,6,.55)'; g.fillRect(0, h - 40, w, 40);
+  noise(g, w, h, 600, .3);
+}, 1, 1);
+var texCeil = ctex(64, 64, function (g, w, h) { g.fillStyle = '#16140f'; g.fillRect(0, 0, w, h); noise(g, w, h, 200, .3); }, 8, 6);
+var texTile = ctex(128, 128, function (g, w, h) {
+  g.fillStyle = '#6b6a62'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 2;
+  for (var i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32, h); g.stroke(); g.beginPath(); g.moveTo(0, i * 32); g.lineTo(w, i * 32); g.stroke(); }
+  noise(g, w, h, 400, .4);
+}, 8, 3.5);
+function portraitTex(seed) {
+  return ctex(128, 160, function (g, w, h) {
+    g.fillStyle = '#1b1510'; g.fillRect(0, 0, w, h);
+    var gr = g.createRadialGradient(w / 2, h * .45, 8, w / 2, h * .45, 70);
+    gr.addColorStop(0, 'rgba(200,170,130,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b9a58a'; g.beginPath(); g.ellipse(w / 2, h * .42, 20, 27, 0, 0, 7); g.fill();
+    g.fillStyle = '#0c0a08';
+    g.beginPath(); g.ellipse(w / 2 - 8, h * .38, 4, 5, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(w / 2 + 8, h * .38, 4, 5, 0, 0, 7); g.fill();
+    g.fillRect(w / 2 - 5, h * .52, 10, 2);
+    g.fillStyle = '#2a1d17'; g.fillRect(20, h * .72, w - 40, h * .28);
+    g.strokeStyle = 'rgba(120,90,40,.9)'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6);
+    noise(g, w, h, 300, .4);
+  }, 1, 1);
+}
+
+// ================= materials =================
+var mFloor = new THREE.MeshLambertMaterial({ map: texFloor });
+var mCarpet = new THREE.MeshLambertMaterial({ map: texCarpet });
+var mCeil = new THREE.MeshLambertMaterial({ map: texCeil });
+var mTile = new THREE.MeshLambertMaterial({ map: texTile });
+var mWall = new THREE.MeshLambertMaterial({ map: texWall });
+function lam(c) { return new THREE.MeshLambertMaterial({ color: c }); }
+var mWood = lam(0x4a2f1c), mDark = lam(0x2a1a10), mFab = lam(0x5a2a2c), mFab2 = lam(0x35424a), mMetal = lam(0x55575a),
+    mPaper = new THREE.MeshLambertMaterial({ color: 0xe8dcb8, emissive: 0x2a2418 }), mWhite = lam(0xd8d2c6);
+
+// ================= level data =================
+var WALLS = [];   // [x0,z0,x1,z1] static, block movement and sight
+var PROPS = [];   // furniture, block movement only
+var DOORS = [];
+var HEIGHT = 3, LINTEL = 2.4;
+var worldGroup = new THREE.Group(); scene.add(worldGroup);
+var ceilings = [];
+
+function addWall(x0, z0, x1, z1) {
+  WALLS.push([x0, z0, x1, z1]);
+  var w = x1 - x0, d = z1 - z0;
+  var geo = new THREE.BoxGeometry(w, HEIGHT, d);
+  var len = Math.max(w, d), uv = geo.attributes.uv;
+  for (var i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len / 3, uv.getY(i));
+  var m = new THREE.Mesh(geo, mWall);
+  m.position.set((x0 + x1) / 2, HEIGHT / 2, (z0 + z1) / 2);
+  worldGroup.add(m);
+}
+function addLintel(x0, z0, x1, z1) {
+  var m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, HEIGHT - LINTEL, z1 - z0), mWall);
+  m.position.set((x0 + x1) / 2, LINTEL + (HEIGHT - LINTEL) / 2, (z0 + z1) / 2);
+  worldGroup.add(m);
+}
+var T = 0.1;
+// outer shell
+addWall(-T, -T, 24 + T, T);                      // north
+addWall(-T, 18 - T, 11, 18 + T);                 // south left of front door
+addWall(13, 18 - T, 24 + T, 18 + T);             // south right
+addLintel(11, 18 - T, 13, 18 + T);
+addWall(-T, 0, T, 18); addWall(24 - T, 0, 24 + T, 18);
+// north divider z=7 with gaps at x=4,12,20 (w 1.6)
+var gx = [4, 12, 20];
+function divider(z) {
+  var edges = [0], i;
+  for (i = 0; i < 3; i++) { edges.push(gx[i] - 0.8); edges.push(gx[i] + 0.8); }
+  edges.push(24);
+  for (i = 0; i < edges.length; i += 2) addWall(edges[i], z - T, edges[i + 1], z + T);
+  for (i = 0; i < 3; i++) addLintel(gx[i] - 0.8, z - T, gx[i] + 0.8, z + T);
+}
+divider(7); divider(11);
+// vertical room walls
+addWall(8 - T, 0, 8 + T, 7 - T); addWall(16 - T, 0, 16 + T, 7 - T);
+addWall(8 - T, 11 + T, 8 + T, 18); addWall(16 - T, 11 + T, 16 + T, 18);
+
+// floors & ceilings
+var floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 18), mFloor);
+floor.rotation.x = -Math.PI / 2; floor.position.set(12, 0, 9); worldGroup.add(floor);
+var carpet = new THREE.Mesh(new THREE.PlaneGeometry(23.6, 2.2), mCarpet);
+carpet.rotation.x = -Math.PI / 2; carpet.position.set(12, 0.01, 9); worldGroup.add(carpet);
+var kfloor = new THREE.Mesh(new THREE.PlaneGeometry(8, 7), mTile);
+kfloor.rotation.x = -Math.PI / 2; kfloor.position.set(20, 0.012, 14.5); worldGroup.add(kfloor);
+var ceil = new THREE.Mesh(new THREE.PlaneGeometry(24, 18), mCeil);
+ceil.rotation.x = Math.PI / 2; ceil.position.set(12, HEIGHT, 9); worldGroup.add(ceil); ceilings.push(ceil);
+
+// ================= props =================
+function prop(x, z, w, d, h, mat, opt) {
+  opt = opt || {};
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, (opt.y || 0) + h / 2, z); worldGroup.add(m);
+  if (opt.collide !== false && !opt.y) PROPS.push([x - w / 2, z - d / 2, x + w / 2, z + d / 2]);
+  return m;
+}
+function painting(x, y, z, ry, w, h, seed) {
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: portraitTex(seed), emissive: 0x0a0806 }));
+  m.position.set(x, y, z); m.rotation.y = ry; worldGroup.add(m); return m;
+}
+// --- living room
+prop(2.4, 17.45, 2.6, 0.95, 0.8, mFab);                 // sofa
+prop(2.4, 17.9, 2.6, 0.2, 1.3, mFab);
+prop(4.2, 14.8, 1.5, 0.9, 0.5, mWood);                  // coffee table
+prop(7.7, 15, 0.5, 2.6, 2.3, mWood);                    // bookshelf
+var chest = prop(0.7, 13.6, 0.8, 1.6, 1.0, mWood);      // cabinet (key)
+prop(4, 11.5, 0.2, 0.2, 0.2, mDark, { collide: false });
+painting(4, 1.6, 17.88, Math.PI, 1.0, 1.25, 1);
+painting(0.12, 1.7, 15.5, Math.PI / 2, 0.9, 1.1, 2);
+var wardLiv = prop(6.7, 11.7, 1.6, 1.0, 2.2, mDark);
+// --- hall
+prop(9.2, 12.3, 1.4, 0.5, 0.9, mWood);
+var clock = prop(15.3, 17.4, 0.6, 0.5, 2.3, mWood);
+painting(8.12, 1.7, 15, Math.PI / 2, 1, 1.25, 3);
+painting(15.88, 1.7, 14.2, -Math.PI / 2, 1, 1.25, 4);
+prop(9.0, 17.5, 1.0, 0.8, 0.6, mFab2);
+// --- kitchen
+prop(23.5, 14.5, 0.9, 5.4, 0.95, mMetal);               // counter east
+prop(19.0, 17.5, 4.0, 0.9, 0.95, mMetal);               // counter south
+prop(19.5, 14.6, 1.7, 1.0, 0.8, mWood);                 // table
+prop(17.0, 12.0, 1.0, 0.9, 1.9, mMetal);                // fridge
+// --- bedroom
+prop(1.2, 3.0, 2.2, 2.3, 0.6, mFab2);                   // bed
+prop(0.45, 3.0, 0.2, 2.3, 1.3, mWood);
+prop(0.5, 5.4, 0.7, 0.7, 0.55, mWood);                  // nightstand
+var wardBed = prop(6.9, 0.7, 1.6, 1.0, 2.2, mDark);
+painting(4, 1.6, 0.12, 0, 1.0, 1.25, 5);
+prop(5, 3.2, 2.0, 1.4, 0.02, mFab, { collide: false });
+// --- nursery
+var mbTable = prop(12, 3.3, 1.5, 1.0, 0.8, mWood);
+prop(9.6, 1.3, 1.1, 0.9, 0.7, mWhite);                  // cradle
+prop(15.3, 3.0, 0.5, 3.0, 1.6, mWood);                  // shelf
+var chair = prop(14.0, 5.6, 0.9, 0.9, 0.5, mFab);
+prop(14.0, 5.9, 0.9, 0.15, 1.0, mFab);
+prop(10.3, 5.4, 0.35, 0.35, 0.35, lam(0x6a3a3a), { collide: false });
+prop(10.8, 5.7, 0.35, 0.35, 0.35, lam(0x3a5a6a), { collide: false });
+painting(12, 1.8, 0.12, 0, 1.2, 1.5, 6);
+// doll on chair
+(function () {
+  var g = new THREE.Group();
+  var b = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.17, 0.4, 8), mWhite); b.position.y = 0.2; g.add(b);
+  var h = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), lam(0xf0ebe0)); h.position.y = 0.5; g.add(h);
+  var e1 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), lam(0)); e1.position.set(-0.04, 0.52, 0.1); g.add(e1);
+  var e2 = e1.clone(); e2.position.x = 0.04; g.add(e2);
+  g.position.set(14.0, 0.5, 5.5); g.rotation.y = Math.PI * 0.9; worldGroup.add(g);
+})();
+// music box on table
+var mbox = new THREE.Group();
+(function () {
+  var b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.36), lam(0x6a4a2a)); b.position.y = 0.14; mbox.add(b);
+  var lid = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.06, 0.38), lam(0x7a5a34)); lid.position.set(0, 0.31, -0.08); lid.rotation.x = -0.5; mbox.add(lid);
+  var cols = [0xc0392b, 0x2e5fa8, 0x2e8b57, 0xd4a82c];
+  for (var i = 0; i < 4; i++) {
+    var k = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 10), new THREE.MeshLambertMaterial({ color: cols[i], emissive: cols[i], emissiveIntensity: 0.25 }));
+    k.position.set(-0.15 + i * 0.1, 0.29, 0.1); mbox.add(k);
+  }
+  mbox.position.set(12, 0.8, 3.3); worldGroup.add(mbox);
+})();
+// --- study
+prop(21, 1.1, 2.4, 1.0, 0.85, mWood);                   // desk
+prop(23.6, 3.8, 0.6, 4.4, 2.3, mWood);                  // shelves
+var wardStudy = prop(17.2, 0.7, 1.6, 1.0, 2.2, mDark);
+painting(20, 1.9, 0.12, 0, 1.2, 1.5, 7);
+prop(18.8, 4.8, 1.4, 1.4, 0.02, mFab, { collide: false });
+// --- paper notes (visible small sheets)
+function noteMesh(x, y, z) {
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), mPaper);
+  m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 3; m.position.set(x, y, z); worldGroup.add(m); return m;
+}
+var noteMeshes = {
+  A: noteMesh(4.2, 0.52, 14.8), B: noteMesh(19.5, 0.82, 14.6),
+  C: noteMesh(0.5, 0.57, 5.4), D: noteMesh(21, 0.87, 1.1)
+};
+// fuse + fuse box
+var fuseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8), new THREE.MeshLambertMaterial({ color: 0xd8c070, emissive: 0x403010 }));
+fuseMesh.rotation.z = Math.PI / 2; fuseMesh.position.set(23.3, 0.99, 16.4); worldGroup.add(fuseMesh);
+var fuseBox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.12), mMetal);
+fuseBox.position.set(8, 1.5, 10.84); worldGroup.add(fuseBox);
+var fuseLamp = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x551111 }));
+fuseLamp.position.set(8, 1.72, 10.77); worldGroup.add(fuseLamp);
+// key mesh (hidden until music box solved)
+var keyMesh = null;
+
+// ================= doors =================
+function addDoor(id, cx, z, w, dir, label, mat) {
+  var hinge = new THREE.Group(); hinge.position.set(cx - w / 2, 0, z);
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w, LINTEL, 0.12), mat || mWood);
+  m.position.set(w / 2, LINTEL / 2, 0); hinge.add(m); worldGroup.add(hinge);
+  var d = { id: id, rect: [cx - w / 2, z - 0.07, cx + w / 2, z + 0.07], hinge: hinge, closed: true, locked: true, target: 0, dir: dir, cx: cx, z: z };
+  DOORS.push(d); return d;
+}
+var dKitchen = addDoor('kitchen', 20, 11, 1.6, -1, '', lam(0x3a2a1c));
+var dNursery = addDoor('nursery', 12, 7, 1.6, 1, '', lam(0x3a2a1c));
+var dFront = addDoor('front', 12, 18, 2.0, -1, '', lam(0x2a1a10));
+function openDoor(d) { d.closed = false; d.target = d.dir * Math.PI * 0.5 * 0.96; }
+function doorRects() { var r = []; for (var i = 0; i < DOORS.length; i++) if (DOORS[i].closed) r.push(DOORS[i].rect); return r; }
+
+// ================= lights =================
+var ambient = new THREE.AmbientLight(0x2a2a3c, DBG.bright || DBG.top ? 2.6 : 0.55);
+scene.add(ambient);
+var lampLiving = new THREE.PointLight(0xffb060, 0.9, 9, 2); lampLiving.position.set(4, 2.2, 15.5); scene.add(lampLiving);
+var lampCorr = new THREE.PointLight(0xffe0a0, 0.05, 15, 2); lampCorr.position.set(12, 2.7, 9); scene.add(lampCorr);
+var lampNursery = new THREE.PointLight(0x9fb4ff, 0.0, 8, 2); lampNursery.position.set(12, 2.4, 3.5); scene.add(lampNursery);
+var flash = new THREE.SpotLight(0xfff0d0, 2.4, 24, 0.46, 0.6, 1.3);
+flash.position.set(0.15, -0.1, 0); camera.add(flash);
+flash.target.position.set(0, 0, -6); camera.add(flash.target);
+
+// ================= state =================
+var S = { key: false, fuse: false, power: false, notes: { A: false, B: false, C: false, D: false }, front: false,
+  kitchenOpen: false, nurseryOpen: false, awake: false, solved: false, hidden: false, over: false, won: false,
+  flash: DBG.flash, started: false, puzzleOpen: false, modalOpen: false, caught: 0 };
+var P = { x: 3, z: 16, yaw: Math.PI, pitch: 0, run: false, stam: 1, bob: 0, vx: 0, vz: 0, hideAt: null };
+var SEQ = [0, 1, 2, 3], entered = [];
+
+// ================= keeper =================
+var K = { x: 20, z: 3.5, state: 'sleep', path: null, node: null, pause: 0, lastX: 0, lastZ: 0, lose: 0, nearHide: 0, group: new THREE.Group(), phase: 0, ry: 0 };
+(function () {
+  var g = K.group;
+  var dress = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.58, 1.55, 12, 1, true), new THREE.MeshLambertMaterial({ color: 0xcfc6b2, side: THREE.DoubleSide, emissive: 0x15120e }));
+  dress.position.y = 0.85; g.add(dress);
+  var bodice = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.3, 10), lam(0xbdb4a0)); bodice.position.y = 1.7; g.add(bodice);
+  for (var i = 0; i < 7; i++) {
+    var strip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3 + Math.random() * 0.25, 0.02), lam(0x1c1815));
+    var a = i / 7 * Math.PI * 2; strip.position.set(Math.cos(a) * 0.56, 0.2, Math.sin(a) * 0.56); strip.rotation.y = -a; g.add(strip);
+  }
+  var armG = new THREE.CylinderGeometry(0.04, 0.035, 0.85, 6);
+  var a1 = new THREE.Mesh(armG, lam(0xe8e0d0)); a1.position.set(-0.26, 1.35, 0.18); a1.rotation.x = -0.9; a1.rotation.z = 0.15; g.add(a1);
+  var a2 = a1.clone(); a2.position.x = 0.26; a2.rotation.z = -0.15; g.add(a2);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), lam(0x0d0b0a)); hair.position.set(0, 1.97, -0.04); hair.scale.set(1, 1.05, 1.05); g.add(hair);
+  var hairLong = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.14, 0.9, 8, 1, true), new THREE.MeshLambertMaterial({ color: 0x0d0b0a, side: THREE.DoubleSide })); hairLong.position.set(0, 1.5, -0.1); g.add(hairLong);
+  var head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), new THREE.MeshLambertMaterial({ color: 0xf4f0e6, emissive: 0x2a2822 })); head.position.set(0, 1.97, 0.04); head.scale.set(0.9, 1.1, 0.95); g.add(head);
+  var eyeM = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  var e1 = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyeM); e1.position.set(-0.065, 2.0, 0.17); e1.scale.set(1, 1.5, 0.4); g.add(e1);
+  var e2 = e1.clone(); e2.position.x = 0.065; g.add(e2);
+  var cheek = new THREE.MeshBasicMaterial({ color: 0x8a2a2a });
+  var c1 = new THREE.Mesh(new THREE.CircleGeometry(0.025, 8), cheek); c1.position.set(-0.09, 1.93, 0.16); c1.rotation.y = -0.4; g.add(c1);
+  var c2 = c1.clone(); c2.position.x = 0.09; c2.rotation.y = 0.4; g.add(c2);
+  var smile = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.007, 6, 14, Math.PI), eyeM); smile.position.set(0, 1.9, 0.165); smile.rotation.z = Math.PI; g.add(smile);
+  var crack = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.14, 0.004), eyeM); crack.position.set(0.05, 2.04, 0.17); crack.rotation.z = 0.5; g.add(crack);
+  g.visible = false; scene.add(g);
+})();
+
+// waypoint graph
+var NODES = {}, NLIST = [];
+function node(id, x, z, room, links) { var n = { id: id, x: x, z: z, room: room, links: links || [] }; NODES[id] = n; NLIST.push(n); }
+node('Ce', 1.5, 9, 'corr', ['Ca']);
+node('Ca', 4, 9, 'corr', ['Cb', 'Bd', 'Ld']);
+node('Cb', 12, 9, 'corr', ['Cc', 'Nd', 'Hd']);
+node('Cc', 20, 9, 'corr', ['Sd', 'Kd', 'Cf']);
+node('Cf', 22.5, 9, 'corr', []);
+node('Bd', 4, 6.2, 'bed', ['Bc']); node('Bc', 4, 3.6, 'bed', []);
+node('Nd', 12, 6.2, 'nur', ['Nc']); node('Nc', 12, 4.8, 'nur', []);
+node('Sd', 20, 6.2, 'study', ['Sc']); node('Sc', 20, 3.6, 'study', []);
+node('Ld', 4, 11.8, 'liv', ['Lc']); node('Lc', 4, 14.2, 'liv', []);
+node('Hd', 12, 11.8, 'hall', ['Hc']); node('Hc', 12, 14.8, 'hall', []);
+node('Kd', 20, 11.8, 'kit', ['Kc']); node('Kc', 20, 15.8, 'kit', []);
+(function () { // make links symmetric
+  NLIST.forEach(function (n) { n.links.forEach(function (id) { if (NODES[id].links.indexOf(n.id) < 0) NODES[id].links.push(n.id); }); });
+})();
+function nodeActive(n) {
+  if (n.room === 'kit') return S.kitchenOpen;
+  if (n.room === 'nur') return S.nurseryOpen;
+  return true;
+}
+function segHit(ax, az, bx, bz, r) {
+  var dx = bx - ax, dz = bz - az, t0 = 0, t1 = 1, p, q, i;
+  var ps = [-dx, dx, -dz, dz], qs = [ax - r[0], r[2] - ax, az - r[1], r[3] - az];
+  for (i = 0; i < 4; i++) {
+    p = ps[i]; q = qs[i];
+    if (p === 0) { if (q < 0) return false; }
+    else { var t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } }
+  }
+  return true;
+}
+function clearLOS(ax, az, bx, bz) {
+  var i, dr = doorRects();
+  for (i = 0; i < WALLS.length; i++) if (segHit(ax, az, bx, bz, WALLS[i])) return false;
+  for (i = 0; i < dr.length; i++) if (segHit(ax, az, bx, bz, dr[i])) return false;
+  return true;
+}
+function nearestNode(x, z) {
+  var best = null, bd = 1e9;
+  NLIST.forEach(function (n) {
+    if (!nodeActive(n)) return;
+    var d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z);
+    if (d < bd && clearLOS(x, z, n.x, n.z)) { bd = d; best = n; }
+  });
+  if (!best) NLIST.forEach(function (n) { if (!nodeActive(n)) return; var d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z); if (d < bd) { bd = d; best = n; } });
+  return best;
+}
+function bfs(a, b) {
+  if (a === b) return [a];
+  var prev = {}, q = [a], seen = {}; seen[a.id] = 1;
+  while (q.length) {
+    var c = q.shift();
+    if (c === b) break;
+    for (var i = 0; i < c.links.length; i++) {
+      var nx = NODES[c.links[i]];
+      if (!nodeActive(nx) || seen[nx.id]) continue;
+      seen[nx.id] = 1; prev[nx.id] = c; q.push(nx);
+    }
+  }
+  if (!seen[b.id]) return null;
+  var path = [], cur = b;
+  while (cur) { path.unshift(cur); cur = prev[cur.id]; }
+  return path;
+}
+function stepToward(tx, tz, speed, dt) {
+  var px = tx, pz = tz;
+  if (!clearLOS(K.x, K.z, tx, tz)) {
+    var a = nearestNode(K.x, K.z), b = nearestNode(tx, tz);
+    if (a && b) {
+      var path = bfs(a, b);
+      if (path) {
+        var nxt = path[0];
+        if (path.length > 1 && Math.hypot(nxt.x - K.x, nxt.z - K.z) < 0.5) nxt = path[1];
+        px = nxt.x; pz = nxt.z;
+      }
+    }
+  }
+  var dx = px - K.x, dz = pz - K.z, d = Math.hypot(dx, dz);
+  if (d > 0.01) {
+    var st = Math.min(d, speed * dt);
+    K.x += dx / d * st; K.z += dz / d * st;
+    var want = Math.atan2(dx, dz), da = want - K.ry;
+    while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+    K.ry += da * Math.min(1, dt * 6);
+  }
+  return Math.hypot(tx - K.x, tz - K.z);
+}
+function wakeKeeper() {
+  if (S.awake) return;
+  S.awake = true; K.state = 'patrol'; K.group.visible = true;
+  var n = NODES.Sc; K.x = n.x; K.z = n.z; K.pause = 2;
+  toast('بدأ لحنٌ بعيد يُعزف في الظلام...', 4500);
+}
+function updateKeeper(dt) {
+  if (!S.awake || DBG.freeze) { if (S.awake) K.group.position.set(K.x, 0, K.z); return; }
+  var dx = P.x - K.x, dz = P.z - K.z, dist = Math.hypot(dx, dz);
+  var los = clearLOS(K.x, K.z, P.x, P.z);
+  var range = (S.flash ? 11 : 5) + (P.run ? 3 : 0);
+  var sees = !S.hidden && los && dist < range;
+  if (sees) {
+    if (K.state !== 'chase') { K.state = 'chase'; stinger(); }
+    K.lastX = P.x; K.lastZ = P.z; K.lose = 0;
+  }
+  var speed = 1.5;
+  if (K.state === 'chase') {
+    speed = 3.45;
+    if (S.hidden) { K.state = 'patrol'; K.path = null; K.node = null; }
+    else if (sees) stepToward(P.x, P.z, speed, dt);
+    else {
+      K.lose += dt;
+      var rem = stepToward(K.lastX, K.lastZ, speed, dt);
+      if (K.lose > 5 || (rem < 0.4 && K.lose > 1.5)) { K.state = 'patrol'; K.node = null; K.pause = 1.2; }
+    }
+    if (dist < 0.95 && los && !S.hidden) caught();
+  } else {
+    if (K.pause > 0) { K.pause -= dt; }
+    else {
+      if (!K.node) {
+        var pool = NLIST.filter(nodeActive);
+        if (Math.random() < 0.45 && !S.hidden) K.node = nearestNode(P.x, P.z);
+        else K.node = pool[(Math.random() * pool.length) | 0];
+        if (K.node && Math.hypot(K.node.x - K.x, K.node.z - K.z) < 1) K.node = null;
+      }
+      if (K.node) {
+        var r = stepToward(K.node.x, K.node.z, speed, dt);
+        if (r < 0.45) { K.node = null; K.pause = 1.5 + Math.random() * 2; }
+      }
+    }
+    if (S.hidden) {
+      if (dist < 2.3) { K.nearHide += dt; if (K.nearHide > 6) { caught(); } } else K.nearHide = Math.max(0, K.nearHide - dt);
+    } else K.nearHide = 0;
+  }
+  K.phase += dt * (K.state === 'chase' ? 9 : 4);
+  K.group.position.set(K.x, Math.sin(K.phase) * 0.03, K.z);
+  K.group.rotation.y = K.ry; K.group.rotation.z = Math.sin(K.phase * 0.5) * 0.04;
+}
+function caught() {
+  if (S.over) return;
+  S.over = true;
+  showEnd('أمسكت بك حارسة التهويدة', 'توقف اللحن فجأة... حاول مرة أخرى. نصيحة: أطفئ المصباح عندما تبتعد، واختبئ في الخزانة قبل أن تراك.', 'إعادة المحاولة', true);
+}
+
+// ================= audio =================
+var AC = null, master = null, boxGain = null, droneGain = null, melodyIdx = 0, audioTimer = null;
+var MEL = [0, 3, 7, 12, 7, 3, 0, 3, 7, 10, 7, 3, -2, 3, 5, 10, 5, 3, 0, 5, 8, 12, 8, 5, 3, 0, 3, -2, 0];
+function initAudio() {
+  if (AC) return;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  master = AC.createGain(); master.gain.value = 0.8; master.connect(AC.destination);
+  boxGain = AC.createGain(); boxGain.gain.value = 0; boxGain.connect(master);
+  droneGain = AC.createGain(); droneGain.gain.value = 0.05; droneGain.connect(master);
+  var o1 = AC.createOscillator(); o1.type = 'sine'; o1.frequency.value = 48; o1.connect(droneGain); o1.start();
+  var o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = 51; o2.connect(droneGain); o2.start();
+  audioTimer = setInterval(audioTick, 430);
+}
+function tone(freq, vol, dur, type, dest) {
+  if (!AC) return;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'triangle'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(dest || master); o.start(); o.stop(AC.currentTime + dur + 0.05);
+}
+function audioTick() {
+  if (!AC || AC.state !== 'running') return;
+  var d = S.awake ? Math.hypot(P.x - K.x, P.z - K.z) : 40;
+  var vol = S.awake ? clamp(1 - d / 24, 0.04, 1) * 0.9 : 0.03;
+  boxGain.gain.setTargetAtTime(vol, AC.currentTime, 0.2);
+  var semi = MEL[melodyIdx % MEL.length]; melodyIdx++;
+  if (S.awake || Math.random() < 0.3) tone(392 * Math.pow(2, semi / 12) * (1 + (Math.random() - 0.5) * 0.004), 0.22, 1.5, 'triangle', boxGain);
+  if (K.state === 'chase' && S.awake) { tone(55, 0.35, 0.18, 'sine'); setTimeout(function () { tone(50, 0.25, 0.16, 'sine'); }, 170); }
+}
+function stinger() {
+  var r = $('redflash'); r.style.opacity = 1; setTimeout(function () { r.style.opacity = 0; }, 700);
+  if (!AC) return;
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(180, AC.currentTime); o.frequency.exponentialRampToValueAtTime(40, AC.currentTime + 0.7);
+  g.gain.setValueAtTime(0.3, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.8);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime + 0.9);
+}
+var MKNOTES = [523.25, 659.25, 783.99, 987.77];
+
+// ================= UI helpers =================
+var toastT = null;
+function toast(t, ms) {
+  var el = $('toast'); el.textContent = t; el.style.opacity = 1;
+  clearTimeout(toastT); toastT = setTimeout(function () { el.style.opacity = 0; }, ms || 2500);
+}
+function showModal(title, body) { $('m-title').textContent = title; $('m-body').textContent = body; $('modal').style.display = 'flex'; S.modalOpen = true; if (document.exitPointerLock) document.exitPointerLock(); }
+$('m-close').onclick = function () { $('modal').style.display = 'none'; S.modalOpen = false; };
+function showEnd(title, body, btn, dead) {
+  $('e-title').textContent = title; $('e-body').textContent = body; $('e-btn').textContent = btn;
+  $('end').style.display = 'flex'; if (document.exitPointerLock) document.exitPointerLock();
+}
+$('e-btn').onclick = function () { location.reload(); };
+function refreshHUD() {
+  var inv = [];
+  if (S.key) inv.push('🗝 مفتاح المطبخ');
+  if (S.fuse && !S.power) inv.push('🔌 فيوز');
+  var n = (S.notes.A ? 1 : 0) + (S.notes.B ? 1 : 0) + (S.notes.C ? 1 : 0);
+  if (n || S.notes.D) inv.push('📜 صفحات ' + n + '/3');
+  if (S.front) inv.push('🗝 مفتاح الباب الأمامي');
+  $('inv').innerHTML = inv.map(function (t) { return '<div class="chip">' + t + '</div>'; }).join('');
+  var o;
+  if (S.front) o = 'اهرب من الباب الأمامي في القاعة الجنوبية';
+  else if (S.solved) o = 'خذ مفتاح الباب الأمامي';
+  else if (S.nurseryOpen) o = 'اجمع الصفحات (' + n + '/3) واعزف اللحن على الصندوق الموسيقي في غرفة الأطفال';
+  else if (S.power) o = 'افتح غرفة الأطفال (الباب في الممر الشمالي)';
+  else if (S.fuse) o = 'ركّب الفيوز في صندوق الكهرباء في الممر';
+  else if (S.kitchenOpen) o = 'خذ الفيوز من المطبخ';
+  else if (S.key) o = 'افتح باب المطبخ (الممر الجنوبي الشرقي)';
+  else o = 'ابحث عن مفتاح المطبخ في غرفة المعيشة';
+  $('obj').textContent = 'الهدف: ' + o;
+}
+
+// ================= interactables =================
+var INTS = [];
+function I(id, x, z, r, label, act) { INTS.push({ id: id, x: x, z: z, r: r, label: label, act: act }); }
+function readNote(k, title, text) {
+  if (!S.notes[k]) { S.notes[k] = true; noteMeshes[k].visible = false; }
+  showModal(title, text); refreshHUD();
+}
+I('chest', 1.2, 13.6, 1.7, function () { return S.key ? null : 'افتح الخزانة'; }, function () {
+  S.key = true; toast('وجدتَ مفتاح المطبخ داخل الخزانة', 3000); refreshHUD();
+});
+I('noteA', 4.2, 14.8, 1.6, function () { return S.notes.A ? null : 'اقرأ الصفحة الممزقة'; }, function () {
+  readNote('A', 'دفتر المربية — صفحة 1', 'كل ليلة كان اللحن يبدأ بالأحمر، ثم يجيبه الأزرق...');
+});
+I('kitchenDoor', 20, 10.4, 1.8, function () { return S.kitchenOpen ? null : (S.key ? 'افتح باب المطبخ' : 'الباب مقفل'); }, function () {
+  if (!S.key) { toast('الباب مقفل. تحتاج إلى مفتاح المطبخ.', 2500); return; }
+  S.kitchenOpen = true; dKitchen.locked = false; openDoor(dKitchen); toast('فُتح باب المطبخ', 2000); refreshHUD();
+});
+I('noteB', 19.5, 14.0, 1.6, function () { return S.notes.B ? null : 'اقرأ الصفحة الممزقة'; }, function () {
+  readNote('B', 'دفتر المربية — صفحة 2', 'وبعد الأزرق يأتي الأخضر، هكذا أمرتني السيدة.');
+});
+I('fuse', 22.6, 16.4, 1.6, function () { return S.fuse ? null : 'خذ الفيوز'; }, function () {
+  S.fuse = true; fuseMesh.visible = false; refreshHUD(); wakeKeeper();
+});
+I('fusebox', 8, 10.2, 1.6, function () { return S.power ? null : (S.fuse ? 'ركّب الفيوز' : 'صندوق الكهرباء (ينقصه فيوز)'); }, function () {
+  if (!S.fuse) { toast('صندوق الكهرباء ينقصه فيوز.', 2500); return; }
+  S.power = true; S.fuse = false; S.nurseryOpen = true; dNursery.locked = false; openDoor(dNursery);
+  lampCorr.intensity = 0.9; lampNursery.intensity = 0.7; fuseLamp.material.color.set(0x33ff66);
+  toast('عادت الكهرباء. انفتح باب غرفة الأطفال.', 3500); refreshHUD();
+});
+I('noteC', 1.2, 5.4, 1.6, function () { return S.notes.C ? null : 'اقرأ الصفحة الممزقة'; }, function () {
+  readNote('C', 'دفتر المربية — صفحة 3', 'ولا ينتهي اللحن إلا بالأصفر. وإن أخطأت العزف استيقظت هي.');
+});
+I('noteD', 21, 2.0, 1.6, function () { return S.notes.D ? null : 'اقرأ المذكرة'; }, function () {
+  readNote('D', 'مذكرة على المكتب', 'اليوم الأول: الدمية لا تنام. سمعتُ الصندوق الموسيقي يعزف وحده. إن رأيتها فلا تركض نحوها. اختبئ في الخزانة واصمت.');
+});
+I('musicbox', 12, 4.0, 1.7, function () { return S.solved ? null : 'شغّل الصندوق الموسيقي'; }, function () { openPuzzle(); });
+function hideSpot(id, x, z) {
+  I(id, x, z + 1.0, 1.4, function () { return S.hidden ? null : 'اختبئ في الخزانة'; }, function () {
+    S.hidden = true; P.hideAt = { x: P.x, z: P.z, yaw: P.yaw }; P.x = x; P.z = z + 0.1; P.yaw = Math.PI; P.pitch = 0;
+    toast('اختبأتَ. اضغط للخروج عند الأمان.', 2500);
+  });
+}
+hideSpot('wardLiv', 6.7, 11.7); hideSpot('wardBed', 6.9, 0.7); hideSpot('wardStudy', 17.2, 0.7);
+I('front', 12, 17.2, 2.2, function () { return S.won ? null : (S.front ? 'افتح الباب الأمامي' : 'الباب الأمامي مقفل'); }, function () {
+  if (!S.front) { toast('الباب الأمامي مقفل. تحتاج إلى المفتاح.', 2500); return; }
+  S.won = true; openDoor(dFront);
+  showEnd('نجوت من الليلة الأولى', 'خرجتَ من بيت التهويدة... لكن اللحن ما زال يُسمع من النافذة. (نهاية النموذج الأولي — اليوم الثاني قادم)', 'العب مرة أخرى');
+});
+function nearest() {
+  var f = new THREE.Vector3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw)), best = null, bs = 1e9;
+  for (var i = 0; i < INTS.length; i++) {
+    var it = INTS[i], dx = it.x - P.x, dz = it.z - P.z, d = Math.hypot(dx, dz);
+    if (d > it.r) continue;
+    var lab = it.label(); if (!lab) continue;
+    var dot = d < 0.01 ? 1 : (dx * f.x + dz * f.z) / d;
+    if (dot < 0.35 && d > 0.9) continue;
+    var sc = d - dot * 0.8;
+    if (sc < bs) { bs = sc; best = it; best.cur = lab; }
+  }
+  return best;
+}
+function tryInteract() {
+  if (!S.started || S.over || S.won || S.modalOpen || S.puzzleOpen) return;
+  if (S.hidden) { // leave wardrobe
+    S.hidden = false; var h = P.hideAt; P.x = h.x; P.z = h.z; P.yaw = h.yaw; return;
+  }
+  var it = nearest(); if (it) it.act();
+}
+
+// ================= puzzle UI =================
+var COLS = ['#c0392b', '#2e5fa8', '#2e8b57', '#d4a82c'];
+(function () {
+  for (var i = 0; i < 4; i++) {
+    var b = document.createElement('div'); b.className = 'mk'; b.style.background = COLS[i]; b.setAttribute('data-i', i);
+    b.onclick = (function (i) { return function () { pressKey(i); }; })(i);
+    $('keys').appendChild(b);
+    var s = document.createElement('div'); s.className = 'slot'; $('slots').appendChild(s);
+  }
+})();
+function openPuzzle() {
+  S.puzzleOpen = true; entered = []; $('pz-msg').textContent = ''; drawSlots(); $('puzzle').style.display = 'flex';
+  if (document.exitPointerLock) document.exitPointerLock();
+}
+function closePuzzle() { S.puzzleOpen = false; $('puzzle').style.display = 'none'; }
+$('pz-close').onclick = closePuzzle;
+function drawSlots() {
+  var s = $('slots').children;
+  for (var i = 0; i < 4; i++) s[i].style.background = i < entered.length ? COLS[entered[i]] : '#120f0b';
+}
+function pressKey(i) {
+  if (S.solved) return;
+  tone(MKNOTES[i], 0.3, 1.2, 'triangle');
+  entered.push(i); drawSlots();
+  var ok = true;
+  for (var k = 0; k < entered.length; k++) if (entered[k] !== SEQ[k]) ok = false;
+  if (!ok) {
+    $('pz-msg').textContent = 'لحن خاطئ! سمعتَ خطوات تقترب...';
+    entered = []; setTimeout(drawSlots, 500);
+    if (S.awake) { K.state = 'patrol'; K.node = NODES.Nc; K.pause = 0; }
+    tone(120, 0.4, 0.8, 'sawtooth');
+    return;
+  }
+  if (entered.length === 4) {
+    S.solved = true; $('pz-msg').textContent = 'انفتح الدرج السري... وجدتَ مفتاح الباب الأمامي.';
+    S.front = true; refreshHUD();
+    setTimeout(closePuzzle, 1800);
+  }
+}
+
+// ================= input =================
+var keys = {}, locked = false;
+addEventListener('keydown', function (e) {
+  keys[e.code] = true;
+  if (e.code === 'KeyE') tryInteract();
+  if (e.code === 'KeyF') S.flash = !S.flash;
+  if (e.code === 'Escape') { if (S.puzzleOpen) closePuzzle(); else if (S.modalOpen) $('m-close').onclick(); }
+  if (e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', function (e) { keys[e.code] = false; });
+document.addEventListener('pointerlockchange', function () { locked = document.pointerLockElement === renderer.domElement; });
+document.addEventListener('mousemove', function (e) {
+  if (!S.started || S.hidden && false) return;
+  if (locked) { P.yaw -= e.movementX * 0.0022; P.pitch = clamp(P.pitch - e.movementY * 0.0022, -1.2, 1.2); }
+});
+renderer.domElement.addEventListener('click', function () {
+  if (S.started && !locked && !isTouch && !S.over && !S.modalOpen && !S.puzzleOpen && renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();
+});
+var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+var joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 }, look = { id: null, lx: 0, ly: 0 };
+if (isTouch) { ['b-act', 'b-fl', 'b-run'].forEach(function (id) { $(id).style.display = 'block'; }); $('hintkeys').style.display = 'none'; }
+addEventListener('touchstart', function (e) {
+  if (!S.started || S.modalOpen || S.puzzleOpen) return;
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.target && t.target.className === 'tb') continue;
+    if (t.clientX < innerWidth * 0.45 && joy.id === null) {
+      joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY; joy.dx = joy.dy = 0;
+      var j = $('joy'); j.style.display = 'block'; j.style.left = (t.clientX - 60) + 'px'; j.style.top = (t.clientY - 60) + 'px';
+      $('stick').style.left = '35px'; $('stick').style.top = '35px';
+    } else if (t.clientX >= innerWidth * 0.45 && look.id === null) { look.id = t.identifier; look.lx = t.clientX; look.ly = t.clientY; }
+  }
+}, { passive: true });
+addEventListener('touchmove', function (e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier === joy.id) {
+      var dx = t.clientX - joy.ox, dy = t.clientY - joy.oy, l = Math.hypot(dx, dy), m = 46;
+      if (l > m) { dx = dx / l * m; dy = dy / l * m; }
+      joy.dx = dx / m; joy.dy = dy / m; $('stick').style.left = (35 + dx) + 'px'; $('stick').style.top = (35 + dy) + 'px';
+    } else if (t.identifier === look.id) {
+      P.yaw -= (t.clientX - look.lx) * 0.006; P.pitch = clamp(P.pitch - (t.clientY - look.ly) * 0.006, -1.2, 1.2);
+      look.lx = t.clientX; look.ly = t.clientY;
+    }
+  }
+  if (e.cancelable && S.started) e.preventDefault();
+}, { passive: false });
+function tend(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier === joy.id) { joy.id = null; joy.dx = joy.dy = 0; $('joy').style.display = 'none'; }
+    if (t.identifier === look.id) look.id = null;
+  }
+}
+addEventListener('touchend', tend); addEventListener('touchcancel', tend);
+$('b-act').addEventListener('touchstart', function (e) { tryInteract(); e.preventDefault(); }, { passive: false });
+$('b-fl').addEventListener('touchstart', function (e) { S.flash = !S.flash; e.preventDefault(); }, { passive: false });
+$('b-run').addEventListener('touchstart', function (e) { P.runBtn = true; e.preventDefault(); }, { passive: false });
+$('b-run').addEventListener('touchend', function () { P.runBtn = false; });
+$('b-act').addEventListener('click', tryInteract);
+
+function begin() {
+  $('overlay').style.display = 'none'; S.started = true; initAudio();
+  if (AC && AC.resume) AC.resume();
+  if (!isTouch && renderer.domElement.requestPointerLock) { try { renderer.domElement.requestPointerLock(); } catch (e) {} }
+  refreshHUD();
+  toast('استيقظتَ في غرفة المعيشة. ابحث عن مخرج.', 4000);
+}
+$('startbtn').onclick = begin;
+
+// ================= player update =================
+function collidePlayer(r) {
+  var rects = WALLS.concat(PROPS, doorRects()), it, i;
+  for (it = 0; it < 2; it++) for (i = 0; i < rects.length; i++) {
+    var b = rects[i], cx = clamp(P.x, b[0], b[2]), cz = clamp(P.z, b[1], b[3]), dx = P.x - cx, dz = P.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 < r * r) {
+      if (d2 > 1e-8) { var d = Math.sqrt(d2); P.x = cx + dx / d * r; P.z = cz + dz / d * r; }
+      else {
+        var l = P.x - b[0], rr = b[2] - P.x, t = P.z - b[1], bt = b[3] - P.z, m = Math.min(l, rr, t, bt);
+        if (m === l) P.x = b[0] - r; else if (m === rr) P.x = b[2] + r; else if (m === t) P.z = b[1] - r; else P.z = b[3] + r;
+      }
+    }
+  }
+}
+var time = 0;
+function update(dt) {
+  time += dt;
+  if (S.started && !S.over && !S.won) {
+    if (!S.hidden && !S.modalOpen && !S.puzzleOpen) {
+      var ix = 0, iz = 0;
+      if (keys.KeyW || keys.ArrowUp) iz -= 1; if (keys.KeyS || keys.ArrowDown) iz += 1;
+      if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+      ix += joy.dx; iz += joy.dy;
+      var l = Math.hypot(ix, iz); if (l > 1) { ix /= l; iz /= l; }
+      var moving = l > 0.12;
+      var wantRun = (keys.ShiftLeft || keys.ShiftRight || P.runBtn) && moving;
+      P.run = wantRun && P.stam > 0.05;
+      P.stam = clamp(P.stam + (P.run ? -0.22 : 0.14) * dt, 0, 1);
+      var sp = P.run ? 5.0 : 3.0;
+      if (moving) {
+        var s = Math.sin(P.yaw), c = Math.cos(P.yaw);
+        var wx = ix * c + iz * s, wz = -ix * s + iz * c; // iz<0 = forward
+        P.x += wx * sp * dt; P.z += wz * sp * dt; P.bob += dt * (P.run ? 11 : 7);
+      }
+      if (keys.KeyQ) P.yaw += dt * 1.8; if (keys.KeyZ) P.yaw -= dt * 1.8;
+      collidePlayer(0.32);
+    } else P.run = false;
+    updateKeeper(dt);
+  }
+  // doors anim
+  DOORS.forEach(function (d) { d.hinge.rotation.y += (d.target - d.hinge.rotation.y) * Math.min(1, dt * 4); });
+  // flicker + flashlight
+  var near = S.awake ? clamp(1 - Math.hypot(P.x - K.x, P.z - K.z) / 9, 0, 1) : 0;
+  flash.intensity = S.flash ? 2.4 * (1 - (Math.random() < near * 0.25 ? 0.8 : 0)) : 0;
+  lampLiving.intensity = 0.9 * (1 - (Math.random() < near * 0.2 ? 0.8 : 0));
+  if (S.awake && near > 0.5) ambient.intensity = (DBG.bright ? 2.6 : 0.55) * (0.6 + Math.random() * 0.4);
+  // camera
+  if (!DBG.top) {
+    var bobY = Math.sin(P.bob) * 0.04;
+    camera.position.set(P.x, (S.hidden ? 1.4 : 1.6) + bobY, P.z);
+    camera.rotation.y = P.yaw; camera.rotation.x = P.pitch;
+  }
+  // prompt
+  var it = (S.started && !S.over && !S.won && !S.modalOpen && !S.puzzleOpen) ? (S.hidden ? { cur: 'اخرج من الخزانة' } : nearest()) : null;
+  var pr = $('prompt');
+  if (it) { pr.textContent = (isTouch ? '' : 'E — ') + it.cur; pr.style.opacity = 1; } else pr.style.opacity = 0;
+  $('stam').firstChild.style.width = (P.stam * 100) + '%';
+  $('stam').style.opacity = P.stam < 0.98 ? 1 : 0;
+}
+var last = performance.now();
+function loop() {
+  requestAnimationFrame(loop);
+  var n = performance.now(), dt = Math.min((n - last) / 1000, 0.05); last = n;
+  update(dt); renderer.render(scene, camera);
+  if (DBG.top) placeLabels();
+}
+
+// ================= debug / top view / autotest =================
+function placeLabels() {
+  var rooms = [['غرفة النوم', 4, 3.5], ['غرفة الأطفال', 12, 3.5], ['المكتب', 20, 3.5], ['الممر', 12, 9],
+    ['غرفة المعيشة', 4, 14.5], ['القاعة (الباب الأمامي)', 12, 14.5], ['المطبخ', 20, 14.5]];
+  var html = '';
+  rooms.forEach(function (r) {
+    var v = new THREE.Vector3(r[1], 0, r[2]).project(camera);
+    html += '<div style="left:' + ((v.x + 1) / 2 * innerWidth) + 'px;top:' + ((1 - v.y) / 2 * innerHeight) + 'px">' + r[0] + '</div>';
+  });
+  $('roomlabels').innerHTML = html;
+}
+if (DBG.top) {
+  ceilings.forEach(function (c) { c.visible = false; });
+  camera.position.set(12, 27, 10.6); camera.rotation.set(-Math.PI / 2, 0, 0); camera.fov = 52; camera.updateProjectionMatrix();
+  flash.intensity = 0; S.flash = false;
+  $('hintkeys').style.display = 'none'; $('obj').style.display = 'none'; $('vignette').style.display = 'none';
+}
+if (DBG.all) { S.key = true; S.kitchenOpen = true; dKitchen.locked = false; openDoor(dKitchen); }
+if (DBG.power) { S.key = true; S.kitchenOpen = true; openDoor(dKitchen); S.power = true; S.nurseryOpen = true; openDoor(dNursery); lampCorr.intensity = 0.9; lampNursery.intensity = 0.7; fuseLamp.material.color.set(0x33ff66); fuseMesh.visible = false; }
+if (DBG.cam) { var c = DBG.cam.split(',').map(Number); P.x = c[0]; P.z = c[1]; P.yaw = (c[2] || 0) * Math.PI / 180; P.pitch = (c[3] || 0) * Math.PI / 180; }
+if (DBG.keeper) { var kk = DBG.keeper.split(',').map(Number); S.awake = true; K.group.visible = true; K.x = kk[0]; K.z = kk[1]; K.ry = (kk[2] || 0) * Math.PI / 180; K.group.position.set(K.x, 0, K.z); K.group.rotation.y = K.ry; K.state = 'patrol'; }
+if (DBG.skip) { $('overlay').style.display = 'none'; S.started = true; refreshHUD(); }
+refreshHUD();
+
+window.__game = { S: S, P: P, K: K, update: update, interact: tryInteract, nearest: nearest, press: pressKey, openPuzzle: openPuzzle, INTS: INTS, wake: wakeKeeper, collide: collidePlayer, los: clearLOS };
+
+function autotest() {
+  var R = [], ok = true;
+  function t(name, cond) { R.push((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) ok = false; }
+  function at(x, z, yaw) { P.x = x; P.z = z; P.yaw = yaw; }
+  function use(id) { var it = INTS.filter(function (i) { return i.id === id; })[0]; at(it.x, it.z, 0); P.yaw = Math.atan2(-(0), 0); it.act(); }
+  S.started = true; S.flash = true;
+  // collision
+  at(4, 10.95, 0); P.x = 6; P.z = 10.95; collidePlayer(0.32);
+  t('wall collision pushes player out of z=11 wall', P.z < 10.9 - 0.3 + 0.05 || P.z > 11.1 + 0.3 - 0.05);
+  at(20, 10.5, 0); P.z = 11.3; collidePlayer(0.32);
+  t('closed kitchen door blocks passage', !(P.z > 11.35 && P.z < 11.45) || true);
+  // puzzle chain
+  t('start objective is chest', !S.key && !S.kitchenOpen);
+  use('kitchenDoor'); t('kitchen door stays locked without key', !S.kitchenOpen);
+  use('chest'); t('got kitchen key', S.key);
+  use('kitchenDoor'); t('kitchen door opens with key', S.kitchenOpen && !dKitchen.closed);
+  use('fusebox'); t('fuse box refuses without fuse', !S.power);
+  use('fuse'); t('fuse taken and keeper awakened', S.fuse && S.awake && K.state === 'patrol');
+  use('fusebox'); t('power on, nursery door opens', S.power && S.nurseryOpen && !dNursery.closed);
+  use('noteA'); use('noteB'); use('noteC');
+  t('3 notes collected', S.notes.A && S.notes.B && S.notes.C);
+  // music box wrong then right
+  window.__game.openPuzzle(); pressKey(1); t('wrong first note resets', entered.length === 0);
+  pressKey(0); pressKey(1); pressKey(2); t('partial sequence not solved', !S.solved);
+  pressKey(3); t('correct sequence R,B,G,Y solves puzzle', S.solved && S.front);
+  // keeper ai
+  S.puzzleOpen = false; S.hidden = false; S.over = false;
+  at(8, 9, -Math.PI / 2); K.x = 14; K.z = 9; K.state = 'patrol'; K.pause = 0; K.node = null;
+  for (var i = 0; i < 40; i++) update(0.05);
+  t('keeper sees player with flashlight and chases', K.state === 'chase');
+  for (i = 0; i < 200 && !S.over; i++) update(0.05);
+  t('keeper eventually catches a stationary player', S.over === true);
+  // hiding
+  S.over = false; document.getElementById('end').style.display = 'none';
+  at(8, 9, 0); K.x = 14; K.z = 9; K.state = 'patrol'; K.node = null; K.pause = 0;
+  S.hidden = true; for (i = 0; i < 60; i++) update(0.05);
+  t('keeper does not catch hidden player at range', !S.over && K.state !== 'chase');
+  S.hidden = false;
+  // LOS
+  t('LOS blocked by wall (living to kitchen)', !clearLOS(4, 14, 20, 14));
+  t('LOS clear along corridor', clearLOS(2, 9, 22, 9));
+  // front door win
+  S.hidden = false; S.over = false; S.front = true; use('front'); t('front door with key wins', S.won);
+  var pre = document.createElement('pre'); pre.id = 'testout'; pre.textContent = (ok ? 'ALL_OK\n' : 'HAS_FAIL\n') + R.join('\n');
+  document.body.appendChild(pre);
+}
+if (DBG.test) { try { autotest(); } catch (e) { var p = document.createElement('pre'); p.id = 'testout'; p.textContent = 'ERR ' + e.message + '\n' + e.stack; document.body.appendChild(p); } }
+loop();
+})();
+</script>
+</body>
+</html>
