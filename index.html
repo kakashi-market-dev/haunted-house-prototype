@@ -2,107 +2,119 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>بيت التهويدة — نموذج أولي (اليوم الأول)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="screen-orientation" content="portrait">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>بيت التهويدة - نموذج أولي 0.2</title>
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#000;font-family:'Segoe UI',Tahoma,Arial,sans-serif;touch-action:none;color:#e8e2d4;-webkit-user-select:none;user-select:none}
+  html,body{margin:0;padding:0;overflow:hidden;height:100%;background:#000;font-family:'Segoe UI',Tahoma,Arial,sans-serif;touch-action:none;color:#e8e2d4;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
   #game{position:fixed;inset:0}
   canvas{display:block}
-  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 40%,rgba(0,0,0,.78) 100%)}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.6) 100%)}
   #redflash{position:fixed;inset:0;pointer-events:none;z-index:6;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 30%,rgba(150,0,0,.55) 100%);opacity:0;transition:opacity .25s}
+  #hideov{position:fixed;inset:0;pointer-events:none;z-index:7;display:none;background:linear-gradient(#000 0,#000 44%,rgba(0,0,0,.55) 46%,rgba(0,0,0,.55) 54%,#000 56%,#000 100%)}
   .hud{position:fixed;z-index:10;pointer-events:none}
-  #obj{top:10px;right:12px;max-width:60%;font-size:15px;line-height:1.6;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);padding:6px 12px;border-radius:8px}
-  #inv{top:10px;left:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:36%}
-  .chip{background:rgba(0,0,0,.5);border:1px solid rgba(255,220,150,.35);padding:4px 10px;border-radius:999px;font-size:13px}
-  #stam{bottom:14px;left:50%;transform:translateX(-50%);width:140px;height:5px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
+  #obj{top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:520px;box-sizing:border-box;text-align:center;font-size:14px;line-height:1.6;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);padding:6px 10px;border-radius:10px}
+  #inv{top:calc(64px + env(safe-area-inset-top));right:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:62%}
+  .chip{background:rgba(0,0,0,.55);border:1px solid rgba(255,220,150,.4);padding:3px 9px;border-radius:999px;font-size:13px}
+  #lvl{top:calc(64px + env(safe-area-inset-top));left:12px;font-size:12px;opacity:.75;background:rgba(0,0,0,.45);padding:3px 9px;border-radius:999px}
+  #b-notes{position:fixed;z-index:15;left:12px;top:calc(92px + env(safe-area-inset-top));width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:rgba(20,16,12,.65);font-size:21px;color:#fff;pointer-events:auto}
+  #stam{bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:120px;height:4px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
   #stam i{display:block;height:100%;width:100%;background:#c9b57a}
-  #prompt{bottom:22%;left:0;right:0;text-align:center;font-size:19px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s}
-  #toast{top:22%;left:0;right:0;text-align:center;font-size:18px;text-shadow:0 2px 8px #000;opacity:0;transition:opacity .4s;padding:0 20px;line-height:1.7}
-  #roomlabels div{position:fixed;transform:translate(-50%,-50%);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px #000,0 0 5px #000;pointer-events:none;z-index:12}
-  #modal,#puzzle{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72)}
-  .card{background:#1b1713;border:1px solid #6b5a3a;border-radius:12px;padding:22px 26px;max-width:440px;width:84%;text-align:center;line-height:1.9;font-size:17px;box-shadow:0 8px 40px #000}
-  .card h3{margin:0 0 10px;color:#d9c48c;font-size:20px}
-  .btn{pointer-events:auto;cursor:pointer;border:1px solid #8a7544;background:#2b241a;color:#f0e6cc;border-radius:10px;padding:10px 22px;font-size:16px;margin:8px 4px 0}
+  #toast{top:24%;left:0;right:0;text-align:center;font-size:17px;text-shadow:0 2px 8px #000;opacity:0;transition:opacity .4s;padding:0 22px;line-height:1.7}
+  #hintkeys{bottom:34px;left:0;right:0;text-align:center;font-size:12px;opacity:.5;display:none}
+  #modal{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.74)}
+  .card{background:#1b1713;border:1px solid #6b5a3a;border-radius:14px;padding:18px 20px;max-width:430px;width:86%;max-height:84%;overflow:auto;text-align:center;line-height:1.85;font-size:16px;box-shadow:0 8px 40px #000;box-sizing:border-box}
+  .card h3{margin:0 0 8px;color:#d9c48c;font-size:20px}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid #8a7544;background:#2b241a;color:#f0e6cc;border-radius:10px;padding:10px 20px;font-size:16px;margin:8px 4px 0;font-family:inherit}
   .btn:active{transform:scale(.96)}
-  #keys{display:flex;gap:12px;justify-content:center;margin:14px 0}
-  .mk{width:62px;height:62px;border-radius:12px;border:2px solid rgba(255,255,255,.25);cursor:pointer}
+  .row{display:flex;gap:10px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+  .mk{width:58px;height:58px;border-radius:12px;border:2px solid rgba(255,255,255,.25);cursor:pointer}
   .mk:active{transform:scale(.92);filter:brightness(1.5)}
-  #slots{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
-  .slot{width:26px;height:26px;border-radius:50%;border:2px solid #6b5a3a;background:#120f0b}
-  #overlay,#end{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
-    background:radial-gradient(ellipse at center,rgba(25,18,14,.93),rgba(0,0,0,.98))}
+  .slot{width:24px;height:24px;border-radius:50%;border:2px solid #6b5a3a;background:#120f0b}
+  .dig{width:36px;height:46px;border:2px solid #6b5a3a;border-radius:8px;background:#120f0b;font-size:26px;line-height:46px;color:#f2d98a}
+  .pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin:10px 0;direction:ltr}
+  .pad .btn{margin:0;padding:12px 0;font-size:20px}
+  .note{font-size:15px;text-align:right;margin:4px 0;border-bottom:1px dashed rgba(255,255,255,.12);padding-bottom:4px}
+  #overlay,#end,#rotate{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;
+    background:radial-gradient(ellipse at center,rgba(25,18,14,.94),rgba(0,0,0,.98))}
   #end{display:none}
-  #overlay h1,#end h1{font-size:38px;margin:0 0 6px;color:#d9c48c;letter-spacing:.5px}
-  #overlay p,#end p{font-size:16px;opacity:.85;margin:5px 0;max-width:460px;line-height:1.8}
-  #overlay .sub{font-size:13px;opacity:.55;margin-top:14px}
-  #startbtn{margin-top:22px;font-size:21px;font-weight:700;padding:14px 50px;background:linear-gradient(135deg,#8a2a1f,#4d120c);border-color:#b8523f;color:#fff}
-  /* touch */
-  #joy{position:fixed;z-index:15;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22);display:none}
-  #stick{position:absolute;width:50px;height:50px;border-radius:50%;left:35px;top:35px;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.45)}
-  .tb{position:fixed;z-index:15;display:none;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,16,12,.6);color:#fff;font-size:14px;font-weight:700;pointer-events:auto}
-  #b-act{right:22px;bottom:90px;width:82px;height:82px;background:rgba(140,60,40,.75)}
-  #b-fl{right:116px;bottom:40px;width:58px;height:58px}
-  #b-run{right:22px;bottom:186px;width:58px;height:58px}
-  #hintkeys{bottom:34px;left:0;right:0;text-align:center;font-size:12px;opacity:.5}
+  #rotate{display:none;z-index:60;font-size:20px}
+  #overlay h1,#end h1{font-size:36px;margin:0 0 6px;color:#d9c48c}
+  #overlay p,#end p{font-size:15px;opacity:.88;margin:5px 0;max-width:420px;line-height:1.8}
+  #overlay .sub{font-size:12px;opacity:.55;margin-top:14px}
+  #startbtn{margin-top:20px;font-size:21px;font-weight:700;padding:14px 50px;background:linear-gradient(135deg,#8a2a1f,#4d120c);border-color:#b8523f;color:#fff}
+  #joy{position:fixed;z-index:15;left:22px;bottom:calc(36px + env(safe-area-inset-bottom));width:124px;height:124px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22);display:none}
+  #stick{position:absolute;width:52px;height:52px;border-radius:50%;left:36px;top:36px;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.45)}
+  .tb{position:fixed;z-index:15;display:none;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,16,12,.65);color:#fff;font-size:22px;pointer-events:auto;padding:0}
+  #b-fl{right:20px;bottom:calc(36px + env(safe-area-inset-bottom));width:54px;height:54px}
+  #b-run{right:84px;bottom:calc(36px + env(safe-area-inset-bottom));width:54px;height:54px}
+  #b-run.on{background:rgba(180,140,40,.8)}
+  #act{position:fixed;z-index:16;right:18px;bottom:calc(112px + env(safe-area-inset-bottom));display:none;flex-direction:column;align-items:center;justify-content:center;width:96px;height:96px;border-radius:50%;
+    background:rgba(150,60,40,.88);border:3px solid rgba(255,230,190,.8);color:#fff;font-family:inherit;pointer-events:auto;box-shadow:0 0 22px rgba(255,170,90,.5);animation:pulse 1.2s infinite;padding:0}
+  #act .ic{font-size:34px;line-height:36px}
+  #act .lb{font-size:13px;line-height:16px;margin-top:2px}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  #roomlabels div{position:fixed;transform:translate(-50%,-50%);font-size:13px;font-weight:700;color:#fff;text-shadow:0 0 5px #000,0 0 5px #000;pointer-events:none;z-index:12}
 </style>
 </head>
 <body>
 <div id="game"></div>
-<div id="vignette"></div><div id="redflash"></div>
-<div class="hud" id="obj">الهدف: —</div>
+<div id="vignette"></div><div id="redflash"></div><div id="hideov"></div>
+<div class="hud" id="obj">الهدف: -</div>
 <div class="hud" id="inv"></div>
+<div class="hud" id="lvl"></div>
+<button id="b-notes" class="tb" style="display:none">📓</button>
 <div class="hud" id="stam"><i></i></div>
-<div class="hud" id="prompt"></div>
 <div class="hud" id="toast"></div>
-<div class="hud" id="hintkeys">WASD للحركة · الفأرة للنظر · E للتفاعل · F للمصباح · Shift للجري</div>
+<div class="hud" id="hintkeys">WASD للحركة · الفأرة للنظر · E للتفاعل · F للمصباح · Shift للجري · N للملاحظات</div>
 <div id="roomlabels"></div>
 <div id="joy"><div id="stick"></div></div>
-<button class="tb" id="b-act">تفاعل</button>
-<button class="tb" id="b-fl">مصباح</button>
-<button class="tb" id="b-run">جري</button>
-
-<div id="modal"><div class="card"><h3 id="m-title"></h3><div id="m-body"></div><button class="btn" id="m-close">إغلاق</button></div></div>
-<div id="puzzle"><div class="card"><h3>الصندوق الموسيقي</h3>
-  <div>اعزف اللحن بالترتيب الصحيح ليُفتح الدرج.</div>
-  <div id="keys"></div><div id="slots"></div>
-  <div id="pz-msg" style="min-height:26px;color:#e0a070"></div>
-  <button class="btn" id="pz-close">ابتعد</button></div></div>
-
+<button class="tb" id="b-fl">🔦</button>
+<button class="tb" id="b-run">🏃</button>
+<button id="act"><span class="ic" id="act-ic">🚪</span><span class="lb" id="act-lb">فتح</span></button>
+<div id="modal"><div class="card" id="card"></div></div>
 <div id="overlay">
   <h1>بيت التهويدة</h1>
-  <p>نموذج أولي لمستوى البيت والألغاز — اليوم الأول.</p>
-  <p>استيقظتَ في بيت قديم مظلم. اجمع الصفحات الممزقة، أعد الكهرباء، وافتح الصندوق الموسيقي للحصول على مفتاح الباب الأمامي.</p>
-  <p>«حارسة التهويدة» تتجول في الظلام. لا تركض نحوها، اختبئ في الخزانة، وأطفئ المصباح عندما تقترب.</p>
+  <p>نموذج أولي للبيت والألغاز (الإصدار 0.2): بيت من طابقين مع قبو.</p>
+  <p>استيقظتَ في غرفة النوم العلوية. ابحث عن المفاتيح والأوراق، وحلّ الألغاز، واجمع ما يلزم لفتح الباب الأمامي. عندما تعود الكهرباء ستستيقظ «حارسة التهويدة».</p>
+  <p>تظهر أزرار التفاعل فقط عندما تقترب من شيء يمكن استخدامه (فتح، التقاط، فحص، اختباء).</p>
   <button class="btn" id="startbtn">ابدأ</button>
-  <div class="sub">سماعات مفضّلة · الإصدار 0.1 — يعمل على الحاسوب والهاتف</div>
+  <div class="sub">سماعات مفضّلة · يُفضَّل حمل الهاتف بالطول</div>
 </div>
 <div id="end"><h1 id="e-title"></h1><p id="e-body"></p><button class="btn" id="e-btn">إعادة المحاولة</button></div>
-
+<div id="rotate">📱<br>يرجى تدوير الهاتف ليصبح بالطول</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function () {
 'use strict';
 var Q = new URLSearchParams(location.search);
-var DBG = { top: Q.get('top') === '1', all: Q.get('all') === '1', bright: Q.get('bright') === '1',
-  skip: Q.get('skip') === '1', cam: Q.get('cam'), keeper: Q.get('keeper'), freeze: Q.get('freeze') === '1',
-  test: Q.get('autotest') === '1', power: Q.get('power') === '1', flash: Q.get('flash') !== '0' };
+var DBG = { top: Q.get('top'), skip: Q.get('skip') === '1', test: Q.get('autotest') === '1', at: Q.get('at'), yaw: Q.get('yaw'), pitch: Q.get('pitch'),
+  give: Q.get('give'), power: Q.get('power') === '1', keeper: Q.get('keeper'), freeze: Q.get('freeze') === '1' };
 function $(id) { return document.getElementById(id); }
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+var STEP = 2.9, WH = 2.7, DH = 2.2, T = 0.12;
+var LV = [-STEP, 0, STEP];
 
-// ================= renderer / scene =================
 var scene = new THREE.Scene();
-scene.background = new THREE.Color(0x020204);
-scene.fog = new THREE.FogExp2(0x030305, DBG.bright || DBG.top ? 0.004 : 0.055);
-var camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 120);
+scene.background = new THREE.Color(0x030305);
+scene.fog = new THREE.FogExp2(0x040406, DBG.top ? 0.002 : 0.034);
+var camera = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.05, 90);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 renderer.setSize(innerWidth, innerHeight);
 $('game').appendChild(renderer.domElement);
-addEventListener('resize', function () {
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
-});
+function fit() {
+  var a = innerWidth / innerHeight;
+  camera.aspect = a; camera.fov = a < 1 ? 88 : 72; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  $('rotate').style.display = (isTouch && a > 1.1 && !DBG.top && !DBG.test) ? 'flex' : 'none';
+}
+addEventListener('resize', fit); fit();
 
 // ================= procedural textures =================
 function ctex(w, h, draw, rx, ry) {
@@ -171,198 +183,359 @@ function portraitTex(seed) {
   }, 1, 1);
 }
 
+var texConc = ctex(128, 128, function (g, w, h) {
+  g.fillStyle = '#54534e'; g.fillRect(0, 0, w, h); noise(g, w, h, 900, .35);
+  g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1; g.strokeRect(0, 0, w, h);
+}, 1, 1);
+var texBrick = ctex(128, 128, function (g, w, h) {
+  g.fillStyle = '#3c2a22'; g.fillRect(0, 0, w, h);
+  for (var r = 0; r < 8; r++) for (var c = 0; c < 4; c++) {
+    var ox = (r % 2) * 16; var l = 22 + Math.random() * 10;
+    g.fillStyle = 'hsl(14,35%,' + l + '%)'; g.fillRect(c * 32 + ox + 1, r * 16 + 1, 30, 14);
+  }
+  noise(g, w, h, 500, .35);
+}, 1, 1);
+var texStair = ctex(64, 64, function (g, w, h) {
+  g.fillStyle = '#4a2f1c'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, 0, w, 6); g.fillStyle = 'rgba(255,220,160,.12)'; g.fillRect(0, 6, w, 5); noise(g, w, h, 100, .3);
+}, 1, 1);
+
 // ================= materials =================
-var mFloor = new THREE.MeshLambertMaterial({ map: texFloor });
-var mCarpet = new THREE.MeshLambertMaterial({ map: texCarpet });
-var mCeil = new THREE.MeshLambertMaterial({ map: texCeil });
-var mTile = new THREE.MeshLambertMaterial({ map: texTile });
-var mWall = new THREE.MeshLambertMaterial({ map: texWall });
 function lam(c) { return new THREE.MeshLambertMaterial({ color: c }); }
-var mWood = lam(0x4a2f1c), mDark = lam(0x2a1a10), mFab = lam(0x5a2a2c), mFab2 = lam(0x35424a), mMetal = lam(0x55575a),
-    mPaper = new THREE.MeshLambertMaterial({ color: 0xe8dcb8, emissive: 0x2a2418 }), mWhite = lam(0xd8d2c6);
+function tm(t) { return new THREE.MeshLambertMaterial({ map: t }); }
+var mFloor = tm(texFloor), mCarpet = tm(texCarpet), mTile = tm(texTile), mCeil = tm(texCeil), mWall = tm(texWall), mConc = tm(texConc), mBrick = tm(texBrick), mStair = tm(texStair);
+var mWood = lam(0x5a3a22), mDark = lam(0x2e1d12), mFab = lam(0x6a2f31), mFab2 = lam(0x3d4c56), mMetal = lam(0x6a6c70), mWhite = lam(0xd8d2c6), mRust = lam(0x6b3a22), mBook = lam(0x3a2a40);
+var mPaper = new THREE.MeshLambertMaterial({ color: 0xe8dcb8, emissive: 0x2a2418 });
 
-// ================= level data =================
-var WALLS = [];   // [x0,z0,x1,z1] static, block movement and sight
-var PROPS = [];   // furniture, block movement only
-var DOORS = [];
-var HEIGHT = 3, LINTEL = 2.4;
-var worldGroup = new THREE.Group(); scene.add(worldGroup);
-var ceilings = [];
+// ================= level builders =================
+var LG = [new THREE.Group(), new THREE.Group(), new THREE.Group()];
+LG.forEach(function (g) { scene.add(g); });
+var ROOF = null;
+var COL = [], DOORS = [], INTS = [], MARKERS = [];
 
-function addWall(x0, z0, x1, z1) {
-  WALLS.push([x0, z0, x1, z1]);
-  var w = x1 - x0, d = z1 - z0;
-  var geo = new THREE.BoxGeometry(w, HEIGHT, d);
-  var len = Math.max(w, d), uv = geo.attributes.uv;
-  for (var i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len / 3, uv.getY(i));
-  var m = new THREE.Mesh(geo, mWall);
-  m.position.set((x0 + x1) / 2, HEIGHT / 2, (z0 + z1) / 2);
-  worldGroup.add(m);
+function bxGeo(w, h, d, ts) {
+  var g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
+  var sc = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  for (var f = 0; f < 6; f++) for (var i = 0; i < 4; i++) { var k = f * 4 + i; uv.setXY(k, uv.getX(k) * sc[f][0] / ts, uv.getY(k) * sc[f][1] / ts); }
+  return g;
 }
-function addLintel(x0, z0, x1, z1) {
-  var m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, HEIGHT - LINTEL, z1 - z0), mWall);
-  m.position.set((x0 + x1) / 2, LINTEL + (HEIGHT - LINTEL) / 2, (z0 + z1) / 2);
-  worldGroup.add(m);
+function mk(l, x0, y0, z0, x1, y1, z1, mat, ts) {
+  var m = new THREE.Mesh(bxGeo(x1 - x0, y1 - y0, z1 - z0, ts || 3), mat);
+  m.position.set((x0 + x1) / 2, LV[l] + (y0 + y1) / 2, (z0 + z1) / 2);
+  LG[l].add(m); return m;
 }
-var T = 0.1;
-// outer shell
-addWall(-T, -T, 24 + T, T);                      // north
-addWall(-T, 18 - T, 11, 18 + T);                 // south left of front door
-addWall(13, 18 - T, 24 + T, 18 + T);             // south right
-addLintel(11, 18 - T, 13, 18 + T);
-addWall(-T, 0, T, 18); addWall(24 - T, 0, 24 + T, 18);
-// north divider z=7 with gaps at x=4,12,20 (w 1.6)
-var gx = [4, 12, 20];
-function divider(z) {
-  var edges = [0], i;
-  for (i = 0; i < 3; i++) { edges.push(gx[i] - 0.8); edges.push(gx[i] + 0.8); }
-  edges.push(24);
-  for (i = 0; i < edges.length; i += 2) addWall(edges[i], z - T, edges[i + 1], z + T);
-  for (i = 0; i < 3; i++) addLintel(gx[i] - 0.8, z - T, gx[i] + 0.8, z + T);
+function col(l, x0, z0, x1, z1) { COL.push({ l: l, x0: x0, z0: z0, x1: x1, z1: z1 }); }
+function wallMat(l) { return l === 0 ? mBrick : mWall; }
+function wall(l, x0, z0, x1, z1) {
+  if (x1 - x0 < 0.02 || z1 - z0 < 0.02) return;
+  mk(l, x0, 0, z0, x1, WH, z1, wallMat(l)); col(l, x0, z0, x1, z1);
 }
-divider(7); divider(11);
-// vertical room walls
-addWall(8 - T, 0, 8 + T, 7 - T); addWall(16 - T, 0, 16 + T, 7 - T);
-addWall(8 - T, 11 + T, 8 + T, 18); addWall(16 - T, 11 + T, 16 + T, 18);
-
-// floors & ceilings
-var floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 18), mFloor);
-floor.rotation.x = -Math.PI / 2; floor.position.set(12, 0, 9); worldGroup.add(floor);
-var carpet = new THREE.Mesh(new THREE.PlaneGeometry(23.6, 2.2), mCarpet);
-carpet.rotation.x = -Math.PI / 2; carpet.position.set(12, 0.01, 9); worldGroup.add(carpet);
-var kfloor = new THREE.Mesh(new THREE.PlaneGeometry(8, 7), mTile);
-kfloor.rotation.x = -Math.PI / 2; kfloor.position.set(20, 0.012, 14.5); worldGroup.add(kfloor);
-var ceil = new THREE.Mesh(new THREE.PlaneGeometry(24, 18), mCeil);
-ceil.rotation.x = Math.PI / 2; ceil.position.set(12, HEIGHT, 9); worldGroup.add(ceil); ceilings.push(ceil);
-
-// ================= props =================
-function prop(x, z, w, d, h, mat, opt) {
-  opt = opt || {};
-  var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.set(x, (opt.y || 0) + h / 2, z); worldGroup.add(m);
-  if (opt.collide !== false && !opt.y) PROPS.push([x - w / 2, z - d / 2, x + w / 2, z + d / 2]);
+// horizontal wall along x at z, gaps = [[center,width],...]
+function hwall(l, z, xa, xb, gaps) {
+  var cur = xa; gaps.sort(function (a, b) { return a[0] - b[0]; });
+  for (var i = 0; i < gaps.length; i++) {
+    var c = gaps[i][0], w = gaps[i][1];
+    wall(l, cur, z - T / 2, c - w / 2, z + T / 2);
+    mk(l, c - w / 2, DH, z - T / 2, c + w / 2, WH, z + T / 2, wallMat(l));
+    cur = c + w / 2;
+  }
+  wall(l, cur, z - T / 2, xb, z + T / 2);
+}
+function vwall(l, x, za, zb) { wall(l, x - T / 2, za, x + T / 2, zb); }
+function slab(l, x0, z0, x1, z1, floorMat, top) {
+  if (x1 - x0 < 0.02 || z1 - z0 < 0.02) return;
+  var y = top === undefined ? LV[l] : top;
+  var m = new THREE.Mesh(bxGeo(x1 - x0, 0.2, z1 - z0, 3), [mWall, mWall, floorMat, mCeil, mWall, mWall]);
+  m.position.set((x0 + x1) / 2, y - 0.1, (z0 + z1) / 2);
+  var tex = floorMat.map; // rely on texture repeat settings
+  LG[l].add(m); return m;
+}
+function prop(l, x, z, w, d, h, mat, nocol) {
+  var m = mk(l, x - w / 2, 0, z - d / 2, x + w / 2, h, z + d / 2, mat || mWood, 1.5);
+  if (!nocol) col(l, x - w / 2, z - d / 2, x + w / 2, z + d / 2);
   return m;
 }
-function painting(x, y, z, ry, w, h, seed) {
-  var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: portraitTex(seed), emissive: 0x0a0806 }));
-  m.position.set(x, y, z); m.rotation.y = ry; worldGroup.add(m); return m;
-}
-// --- living room
-prop(2.4, 17.45, 2.6, 0.95, 0.8, mFab);                 // sofa
-prop(2.4, 17.9, 2.6, 0.2, 1.3, mFab);
-prop(4.2, 14.8, 1.5, 0.9, 0.5, mWood);                  // coffee table
-prop(7.7, 15, 0.5, 2.6, 2.3, mWood);                    // bookshelf
-var chest = prop(0.7, 13.6, 0.8, 1.6, 1.0, mWood);      // cabinet (key)
-prop(4, 11.5, 0.2, 0.2, 0.2, mDark, { collide: false });
-painting(4, 1.6, 17.88, Math.PI, 1.0, 1.25, 1);
-painting(0.12, 1.7, 15.5, Math.PI / 2, 0.9, 1.1, 2);
-var wardLiv = prop(6.7, 11.7, 1.6, 1.0, 2.2, mDark);
-// --- hall
-prop(9.2, 12.3, 1.4, 0.5, 0.9, mWood);
-var clock = prop(15.3, 17.4, 0.6, 0.5, 2.3, mWood);
-painting(8.12, 1.7, 15, Math.PI / 2, 1, 1.25, 3);
-painting(15.88, 1.7, 14.2, -Math.PI / 2, 1, 1.25, 4);
-prop(9.0, 17.5, 1.0, 0.8, 0.6, mFab2);
-// --- kitchen
-prop(23.5, 14.5, 0.9, 5.4, 0.95, mMetal);               // counter east
-prop(19.0, 17.5, 4.0, 0.9, 0.95, mMetal);               // counter south
-prop(19.5, 14.6, 1.7, 1.0, 0.8, mWood);                 // table
-prop(17.0, 12.0, 1.0, 0.9, 1.9, mMetal);                // fridge
-// --- bedroom
-prop(1.2, 3.0, 2.2, 2.3, 0.6, mFab2);                   // bed
-prop(0.45, 3.0, 0.2, 2.3, 1.3, mWood);
-prop(0.5, 5.4, 0.7, 0.7, 0.55, mWood);                  // nightstand
-var wardBed = prop(6.9, 0.7, 1.6, 1.0, 2.2, mDark);
-painting(4, 1.6, 0.12, 0, 1.0, 1.25, 5);
-prop(5, 3.2, 2.0, 1.4, 0.02, mFab, { collide: false });
-// --- nursery
-var mbTable = prop(12, 3.3, 1.5, 1.0, 0.8, mWood);
-prop(9.6, 1.3, 1.1, 0.9, 0.7, mWhite);                  // cradle
-prop(15.3, 3.0, 0.5, 3.0, 1.6, mWood);                  // shelf
-var chair = prop(14.0, 5.6, 0.9, 0.9, 0.5, mFab);
-prop(14.0, 5.9, 0.9, 0.15, 1.0, mFab);
-prop(10.3, 5.4, 0.35, 0.35, 0.35, lam(0x6a3a3a), { collide: false });
-prop(10.8, 5.7, 0.35, 0.35, 0.35, lam(0x3a5a6a), { collide: false });
-painting(12, 1.8, 0.12, 0, 1.2, 1.5, 6);
-// doll on chair
-(function () {
-  var g = new THREE.Group();
-  var b = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.17, 0.4, 8), mWhite); b.position.y = 0.2; g.add(b);
-  var h = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), lam(0xf0ebe0)); h.position.y = 0.5; g.add(h);
-  var e1 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), lam(0)); e1.position.set(-0.04, 0.52, 0.1); g.add(e1);
-  var e2 = e1.clone(); e2.position.x = 0.04; g.add(e2);
-  g.position.set(14.0, 0.5, 5.5); g.rotation.y = Math.PI * 0.9; worldGroup.add(g);
-})();
-// music box on table
-var mbox = new THREE.Group();
-(function () {
-  var b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.36), lam(0x6a4a2a)); b.position.y = 0.14; mbox.add(b);
-  var lid = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.06, 0.38), lam(0x7a5a34)); lid.position.set(0, 0.31, -0.08); lid.rotation.x = -0.5; mbox.add(lid);
-  var cols = [0xc0392b, 0x2e5fa8, 0x2e8b57, 0xd4a82c];
-  for (var i = 0; i < 4; i++) {
-    var k = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 10), new THREE.MeshLambertMaterial({ color: cols[i], emissive: cols[i], emissiveIntensity: 0.25 }));
-    k.position.set(-0.15 + i * 0.1, 0.29, 0.1); mbox.add(k);
-  }
-  mbox.position.set(12, 0.8, 3.3); worldGroup.add(mbox);
-})();
-// --- study
-prop(21, 1.1, 2.4, 1.0, 0.85, mWood);                   // desk
-prop(23.6, 3.8, 0.6, 4.4, 2.3, mWood);                  // shelves
-var wardStudy = prop(17.2, 0.7, 1.6, 1.0, 2.2, mDark);
-painting(20, 1.9, 0.12, 0, 1.2, 1.5, 7);
-prop(18.8, 4.8, 1.4, 1.4, 0.02, mFab, { collide: false });
-// --- paper notes (visible small sheets)
-function noteMesh(x, y, z) {
-  var m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), mPaper);
-  m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 3; m.position.set(x, y, z); worldGroup.add(m); return m;
-}
-var noteMeshes = {
-  A: noteMesh(4.2, 0.52, 14.8), B: noteMesh(19.5, 0.82, 14.6),
-  C: noteMesh(0.5, 0.57, 5.4), D: noteMesh(21, 0.87, 1.1)
-};
-// fuse + fuse box
-var fuseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8), new THREE.MeshLambertMaterial({ color: 0xd8c070, emissive: 0x403010 }));
-fuseMesh.rotation.z = Math.PI / 2; fuseMesh.position.set(23.3, 0.99, 16.4); worldGroup.add(fuseMesh);
-var fuseBox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.12), mMetal);
-fuseBox.position.set(8, 1.5, 10.84); worldGroup.add(fuseBox);
-var fuseLamp = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x551111 }));
-fuseLamp.position.set(8, 1.72, 10.77); worldGroup.add(fuseLamp);
-// key mesh (hidden until music box solved)
-var keyMesh = null;
+function onTop(l, x, z, w, d, y0, y1, mat) { return mk(l, x - w / 2, y0, z - d / 2, x + w / 2, y1, z + d / 2, mat || mPaper, 1); }
 
-// ================= doors =================
-function addDoor(id, cx, z, w, dir, label, mat) {
-  var hinge = new THREE.Group(); hinge.position.set(cx - w / 2, 0, z);
-  var m = new THREE.Mesh(new THREE.BoxGeometry(w, LINTEL, 0.12), mat || mWood);
-  m.position.set(w / 2, LINTEL / 2, 0); hinge.add(m); worldGroup.add(hinge);
-  var d = { id: id, rect: [cx - w / 2, z - 0.07, cx + w / 2, z + 0.07], hinge: hinge, closed: true, locked: true, target: 0, dir: dir, cx: cx, z: z };
+// ---- rooms per level (floors). Holes for the stairs are left out.
+var NAMES = {
+  2: ['غرفة النوم', 'غرفة الأطفال', 'الحمّام', 'الممر العلوي', 'غرفة الضيوف', 'بهو السلم', 'العلّية'],
+  1: ['غرفة المعيشة', 'المطبخ', 'المكتبة', 'الممر', 'المدخل', 'بهو السلم', 'غرفة الطعام'],
+  0: ['غرفة المرجل', 'المخزن', 'الغرفة الأخيرة', 'ممر القبو', 'قبو النبيذ', 'بهو السلم', 'الورشة']
+};
+var ROOMS = [[0, 0, 6, 5], [6, 0, 11, 5], [11, 0, 16, 5], [0, 5, 16, 7], [0, 7, 6, 12], [6, 7, 10, 12], [10, 7, 16, 12]];
+var floorMats = {
+  0: [mConc, mConc, mConc, mConc, mConc, mConc, mConc],
+  1: [mFloor, mTile, mFloor, mCarpet, mFloor, mFloor, mFloor],
+  2: [mFloor, mCarpet, mTile, mCarpet, mFloor, mFloor, mFloor]
+};
+function buildLevel(l) {
+  for (var i = 0; i < 7; i++) {
+    var r = ROOMS[i], m = floorMats[l][i];
+    if (l === 1 && i === 6) { slab(1, 10, 7, 14.05, 12, m); slab(1, 14.05, 7, 16, 7.6, m); }
+    else if (l === 2 && i === 5) { slab(2, 6, 7, 10, 7.5, m); slab(2, 8.3, 7.5, 10, 12, m); slab(2, 6, 7.5, 6.05, 12, m); }
+    else slab(l, r[0], r[1], r[2], r[3], m);
+  }
+  var front = l === 1 ? [[3, 1.4]] : [];
+  hwall(l, 0, -T / 2, 16 + T / 2, []);
+  hwall(l, 12, -T / 2, 16 + T / 2, front);
+  vwall(l, 0, 0, 12); vwall(l, 16, 0, 12);
+  hwall(l, 5, 0, 16, [[3, 1.4], [8.5, 1.4], [13.5, 1.4]]);
+  hwall(l, 7, 0, 16, [[3, 1.4], [8, 3.0], [13, 1.4]]);
+  vwall(l, 6, 0, 5); vwall(l, 11, 0, 5); vwall(l, 6, 7, 12); vwall(l, 10, 7, 12);
+}
+for (var li = 0; li < 3; li++) buildLevel(li);
+// roof
+ROOF = new THREE.Mesh(bxGeo(16.4, 0.2, 12.4, 3), [mWall, mWall, mCeil, mCeil, mWall, mWall]);
+ROOF.position.set(8, LV[2] + STEP - 0.1, 6); LG[2].add(ROOF);
+
+// ---- stairs
+var RUP = { x0: 6.3, x1: 8.1, z0: 7.5, z1: 10.8 };      // ground -> upper, rises toward north
+var RDN = { x0: 14.2, x1: 15.7, z0: 7.6, z1: 11.0 };    // ground -> basement, descends toward south
+function rampY(x, z) {
+  if (x > RUP.x0 && x < RUP.x1 && z > RUP.z0 && z < RUP.z1) return STEP * (RUP.z1 - z) / (RUP.z1 - RUP.z0);
+  if (x > RDN.x0 && x < RDN.x1 && z > RDN.z0 && z < RDN.z1) return -STEP * (z - RDN.z0) / (RDN.z1 - RDN.z0);
+  return null;
+}
+function buildStairs() {
+  var N = 14, i;
+  // up ramp: surface sloped plane + fill steps
+  function ramp(R, up) {
+    var len = R.z1 - R.z0, ang = Math.atan2(STEP, len), L = Math.sqrt(len * len + STEP * STEP);
+    var g = bxGeo(R.x1 - R.x0, 0.14, L, 0.4);
+    var m = new THREE.Mesh(g, mStair);
+    m.position.set((R.x0 + R.x1) / 2, up ? STEP / 2 - 0.07 : -STEP / 2 - 0.07, (R.z0 + R.z1) / 2);
+    m.rotation.x = ang; LG[1].add(m);
+    // side fill
+    for (i = 0; i < N; i++) {
+      var za = R.z0 + len * i / N, zb = R.z0 + len * (i + 1) / N;
+      var yb = up ? STEP * (R.z1 - zb) / len : -STEP * (zb - R.z0) / len;
+      var y0 = up ? 0 : -STEP;
+      if (yb - y0 > 0.05) {
+        var b = new THREE.Mesh(bxGeo(R.x1 - R.x0, yb - y0 - 0.14, zb - za, 1), mDark);
+        b.position.set((R.x0 + R.x1) / 2, (y0 + yb - 0.14) / 2, (za + zb) / 2); LG[1].add(b);
+      }
+    }
+  }
+  ramp(RUP, true); ramp(RDN, false);
+  // rails and barriers (collision + low visual rail)
+  function rail(l, x0, z0, x1, z1) { mk(l, x0, 0, z0, x1, 1.0, z1, mWood, 1.5); col(l, x0, z0, x1, z1); }
+  rail(1, 8.25, 7.5, 8.35, 10.7); rail(2, 8.25, 7.5, 8.35, 12);
+  rail(1, 6.05, 7.45, 8.35, 7.55);
+  rail(1, 14.05, 7.95, 14.15, 12); rail(0, 14.05, 7.6, 14.15, 10.9); rail(0, 14.05, 7.5, 16, 7.6);
+  // roof over the down stairs shaft is the ground slab hole; dark box below in basement not needed
+}
+buildStairs();
+
+// ---- doors
+function addDoor(id, l, cx, cz, w, lock, name) {
+  var d = { id: id, l: l, cx: cx, cz: cz, w: w, lock: lock, name: name, open: false, off: 0 };
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w - 0.04, DH, 0.07), id === 'front' ? lam(0x2a1a10) : lam(lock ? 0x33261a : 0x4a3322));
+  m.position.set(cx, LV[l] + DH / 2, cz); LG[l].add(m);
+  var hdl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), lam(0xc8a860)); hdl.position.set(w / 2 - 0.2, 0, 0.07); m.add(hdl);
+  var hdl2 = hdl.clone(); hdl2.position.z = -0.07; m.add(hdl2);
+  d.mesh = m; d.rect = { l: l, x0: cx - w / 2, z0: cz - 0.07, x1: cx + w / 2, z1: cz + 0.07 };
   DOORS.push(d); return d;
 }
-var dKitchen = addDoor('kitchen', 20, 11, 1.6, -1, '', lam(0x3a2a1c));
-var dNursery = addDoor('nursery', 12, 7, 1.6, 1, '', lam(0x3a2a1c));
-var dFront = addDoor('front', 12, 18, 2.0, -1, '', lam(0x2a1a10));
-function openDoor(d) { d.closed = false; d.target = d.dir * Math.PI * 0.5 * 0.96; }
-function doorRects() { var r = []; for (var i = 0; i < DOORS.length; i++) if (DOORS[i].closed) r.push(DOORS[i].rect); return r; }
+var D = {};
+D.nursery = addDoor('nursery', 2, 8.5, 5, 1.4, 'nursery', 'باب غرفة الأطفال');
+D.kitchen = addDoor('kitchen', 1, 8.5, 5, 1.4, 'kitchen', 'باب المطبخ');
+D.dining = addDoor('dining', 1, 13, 7, 1.4, 'basement', 'باب غرفة الطعام');
+D.ritual = addDoor('ritual', 0, 13.5, 5, 1.4, 'ritual', 'الباب الكهربائي');
+D.front = addDoor('front', 1, 3, 12, 1.4, 'front', 'الباب الأمامي');
+// doors that are never locked
+D.bedroom = addDoor('bedroom', 2, 3, 5, 1.4, null, 'باب غرفة النوم');
+D.bath = addDoor('bath', 2, 13.5, 5, 1.4, null, 'باب الحمّام');
+D.attic = addDoor('attic', 2, 13, 7, 1.4, null, 'باب العلّية');
+D.guest = addDoor('guest', 2, 3, 7, 1.4, null, 'باب غرفة الضيوف');
+D.living = addDoor('living', 1, 3, 5, 1.4, null, 'باب غرفة المعيشة');
+D.library = addDoor('library', 1, 13.5, 5, 1.4, null, 'باب المكتبة');
+D.entry = addDoor('entry', 1, 3, 7, 1.4, null, 'باب المدخل');
+D.boiler = addDoor('boiler', 0, 3, 5, 1.4, null, 'باب غرفة المرجل');
+D.store = addDoor('store', 0, 8.5, 5, 1.4, null, 'باب المخزن');
+D.wine = addDoor('wine', 0, 3, 7, 1.4, null, 'باب قبو النبيذ');
+D.work = addDoor('work', 0, 13, 7, 1.4, null, 'باب الورشة');
 
-// ================= lights =================
-var ambient = new THREE.AmbientLight(0x2a2a3c, DBG.bright || DBG.top ? 2.6 : 0.55);
-scene.add(ambient);
-var lampLiving = new THREE.PointLight(0xffb060, 0.9, 9, 2); lampLiving.position.set(4, 2.2, 15.5); scene.add(lampLiving);
-var lampCorr = new THREE.PointLight(0xffe0a0, 0.05, 15, 2); lampCorr.position.set(12, 2.7, 9); scene.add(lampCorr);
-var lampNursery = new THREE.PointLight(0x9fb4ff, 0.0, 8, 2); lampNursery.position.set(12, 2.4, 3.5); scene.add(lampNursery);
-var flash = new THREE.SpotLight(0xfff0d0, 2.4, 24, 0.46, 0.6, 1.3);
-flash.position.set(0.15, -0.1, 0); camera.add(flash);
-flash.target.position.set(0, 0, -6); camera.add(flash.target);
+// ================= props & furniture =================
+// upper floor (l=2)
+prop(2, 2.0, 1.3, 2.0, 2.2, 0.6, mFab2);                       // bed
+onTop(2, 2.0, 0.8, 1.6, 0.5, 0.6, 0.72, mWhite);
+prop(2, 4.6, 0.55, 0.7, 0.6, 0.55, mWood);                    // nightstand
+prop(2, 0.55, 4.2, 0.9, 1.6, 0.8, mWood);                     // desk
+prop(2, 5.3, 4.3, 1.2, 0.9, 2.1, mDark);                      // wardrobe (hide)
+prop(2, 10.0, 1.2, 1.4, 0.9, 0.7, mWood);                     // crib
+prop(2, 8.5, 2.3, 1.3, 0.8, 0.8, mWood);                      // table + music box
+onTop(2, 8.5, 2.3, 0.35, 0.28, 0.8, 1.0, lam(0x7a4a2a));
+prop(2, 6.5, 3.2, 0.5, 1.8, 0.9, mWood);                      // toy shelf
+prop(2, 14.7, 1.0, 1.8, 0.9, 0.6, mWhite);                    // bathtub
+prop(2, 13.5, 0.25, 0.9, 0.3, 1.2, mWhite);                   // mirror cabinet
+prop(2, 14.2, 11.3, 1.8, 0.8, 0.8, mWood);                    // attic desk
+prop(2, 10.6, 8.2, 1.0, 0.8, 2.1, mDark);                     // attic wardrobe (hide)
+prop(2, 0.5, 10.5, 0.8, 1.8, 0.7, mFab);                      // sofa/bed guest
+prop(2, 5.2, 11.3, 1.2, 0.9, 2.1, mDark);                     // guest wardrobe (hide)
+// ground (l=1)
+prop(1, 2.0, 1.0, 2.2, 0.9, 0.9, mFab);                       // sofa
+prop(1, 3.0, 0.25, 1.6, 0.5, 1.3, lam(0x4a4a4a));            // fireplace
+prop(1, 5.4, 0.7, 1.0, 1.0, 2.1, mDark);                      // living wardrobe (hide)
+prop(1, 8.0, 0.35, 3.2, 0.6, 0.9, mWhite);                    // counter
+prop(1, 10.4, 0.6, 0.9, 0.8, 1.9, mMetal);                    // fridge
+prop(1, 13.5, 0.3, 3.6, 0.5, 2.2, mBook);                     // bookshelf
+prop(1, 15.7, 2.8, 0.5, 3.0, 2.2, mBook);                     // bookshelf east
+prop(1, 11.6, 3.6, 0.6, 0.7, 0.7, mMetal);                    // safe
+prop(1, 0.5, 9.5, 0.4, 0.6, 2.0, mWood);                      // grandfather clock
+prop(1, 5.3, 11.4, 1.2, 0.9, 2.1, mDark);                     // hall wardrobe (hide)
+prop(1, 12.0, 9.5, 2.4, 1.2, 0.8, mWood);                     // dining table
+// basement (l=0)
+prop(0, 1.5, 1.4, 1.5, 1.5, 1.9, mRust);                      // boiler
+prop(0, 4.3, 0.2, 0.7, 0.24, 0.9, mMetal);                    // fuse box
+prop(0, 7.5, 1.0, 1.2, 1.0, 0.9, mWood); prop(0, 9.0, 1.0, 1.0, 1.0, 0.7, mWood); // crates
+prop(0, 10.4, 3.5, 1.0, 0.9, 2.1, mDark);                     // store cabinet (hide)
+prop(0, 13.5, 1.4, 1.8, 0.9, 0.95, lam(0x3a3a3e));           // altar
+prop(0, 1.0, 9.5, 0.5, 4.0, 1.8, mWood); prop(0, 5.0, 9.5, 0.5, 4.0, 1.8, mWood); // wine racks
+prop(0, 11.5, 11.4, 2.0, 0.8, 0.9, mWood);                    // workbench
+prop(0, 10.6, 8.2, 1.0, 0.8, 2.1, mDark);                     // workshop cabinet (hide)
+// small dolls (decor)
+(function () {
+  var dm = new THREE.MeshLambertMaterial({ color: 0xe6ddd0, emissive: 0x201c18 });
+  function doll(l, x, y, z) {
+    var h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dm); h.position.set(x, LV[l] + y + 0.2, z); LG[l].add(h);
+    var b = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.25, 8), lam(0x6a5a5a)); b.position.set(x, LV[l] + y + 0.04, z); LG[l].add(b);
+  }
+  doll(2, 6.5, 0.9, 2.6); doll(2, 10.1, 0.7, 1.5); doll(0, 11.2, 0.9, 11.4); doll(0, 11.9, 0.9, 11.4); doll(0, 13.5, 0.95, 1.4);
+})();
 
-// ================= state =================
-var S = { key: false, fuse: false, power: false, notes: { A: false, B: false, C: false, D: false }, front: false,
-  kitchenOpen: false, nurseryOpen: false, awake: false, solved: false, hidden: false, over: false, won: false,
-  flash: DBG.flash, started: false, puzzleOpen: false, modalOpen: false, caught: 0 };
-var P = { x: 3, z: 16, yaw: Math.PI, pitch: 0, run: false, stam: 1, bob: 0, vx: 0, vz: 0, hideAt: null };
-var SEQ = [0, 1, 2, 3], entered = [];
+// ================= interactables =================
+var MARKER_GEO = new THREE.OctahedronGeometry(0.07), MARKER_MAT = new THREE.MeshBasicMaterial({ color: 0xffd070 });
+function marker(l, x, y, z) {
+  var m = new THREE.Mesh(MARKER_GEO, MARKER_MAT); m.position.set(x, LV[l] + y, z); m.userData.by = LV[l] + y; LG[l].add(m); MARKERS.push(m); return m;
+}
+function I(o) { INTS.push(o); return o; }
+
+var S = { inv: {}, unl: {}, notes: {}, dig: [null, null, null], mbDone: false, power: false, awake: false, hidden: false, modal: false, over: false, started: false, log: [] };
+var P = { x: 2.8, z: 3.2, y: 0, yaw: Math.PI, pitch: 0, run: false, stam: 1, bob: 0 };
+var SEQ = [0, 1, 2, 3];
+function ad(n) { return String(n).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.charAt(+d); }); }
+function addLog(key, text) {
+  for (var i = 0; i < S.log.length; i++) if (S.log[i][0] === key) { S.log[i][1] = text; return; }
+  S.log.push([key, text]);
+}
+function codeLog() { addLog('code', 'رمز الخزنة (٣ أرقام): ' + S.dig.map(function (d) { return d === null ? '؟' : ad(d); }).join(' ')); }
+var CHIPS = { nursery: '🗝️ مفتاح الأطفال', kitchen: '🗝️ مفتاح المطبخ', fuse: '🔌 فيوز', basement: '🗝️ مفتاح القبو', front: '🔑 مفتاح الباب الأمامي' };
+
+function pickup(id, l, x, z, my, key, label, msg, after) {
+  var o = I({ id: id, l: l, x: x, z: z, r: 1.35, ic: '🖐️', lb: label || 'التقاط', done: false });
+  o.mesh = marker(l, x, my, z);
+  o.vis = function () { return !o.done; };
+  o.act = function () {
+    o.done = true; o.mesh.visible = false; S.inv[key] = true; tone(660, .2, .5, 'sine'); toast(msg); refreshHUD(); if (after) after();
+  };
+  return o;
+}
+function inspect(id, l, x, z, label, fn, ic) {
+  var o = I({ id: id, l: l, x: x, z: z, r: 1.35, ic: ic || '🔍', lb: label || 'فحص' });
+  o.act = fn; return o;
+}
+function hideSpot(id, l, x, z) {
+  return I({ id: id, l: l, x: x, z: z, r: 1.3, ic: '🚪', lb: 'اختباء', hide: true, act: function () { enterHide(x, z); } });
+}
+
+// ---- upper floor puzzles
+pickup('key_nursery', 2, 4.6, 0.55, 0.8, 'nursery', 'التقاط المفتاح', 'وجدتَ مفتاحًا نحاسيًا صغيرًا: يبدو أنه لغرفة الأطفال.', function () { addLog('k1', 'مفتاح نحاسي صغير: لغرفة الأطفال (الطابق العلوي، الباب الأوسط).'); });
+inspect('note_A', 2, 0.55, 4.2, 'قراءة الورقة', function () {
+  S.notes.A = true; addLog('nA', 'ورقة ١ (غرفة النوم): «اللحن يبدأ بلون الدم، ثم بلون السماء».'); refreshHUD();
+  showCard('ورقة ممزقة', 'كانت أمي تغنّي لي كل ليلة...<br>«اللحن يبدأ بلون الدم، ثم بلون السماء».', [['حسنًا']]);
+}, '📄').mesh = marker(2, 0.55, 1.0, 4.2);
+inspect('note_B', 2, 13.5, 0.7, 'فحص الخزانة', function () {
+  S.notes.B = true; addLog('nB', 'ورقة ٢ (الحمّام): «ثم لون العشب».'); refreshHUD();
+  showCard('خزانة المرآة', 'خلف المرآة ورقة مطويّة بخط مرتجف:<br>«ثم لون العشب الذي لم أره منذ سنين».', [['حسنًا']]);
+}, '📄').mesh = marker(2, 13.5, 1.3, 0.55);
+inspect('note_C', 2, 14.2, 11.3, 'قراءة الورقة', function () {
+  S.notes.C = true; addLog('nC', 'ورقة ٣ (العلّية): «وآخر نغمة بلون الشمس».'); refreshHUD();
+  showCard('مكتب العلّية', 'على المكتب ورقة صفراء باهتة:<br>«وآخر نغمة بلون الشمس».', [['حسنًا']]);
+}, '📄').mesh = marker(2, 14.2, 0.95, 11.3);
+inspect('photo', 2, 0.35, 10.2, 'فحص الصورة', function () {
+  addLog('year', 'خلف صورة العائلة: «١٩٦٤: العام الذي توقفت فيه التهويدة».');
+  showCard('صورة العائلة', 'عائلة من خمسة أشخاص، وجه الطفلة الصغرى مخدوش.<br>خلف الإطار مكتوب بالحبر:<br><b>«١٩٦٤: العام الذي توقفت فيه التهويدة».</b>', [['حسنًا']]);
+}, '🖼️').mesh = marker(2, 0.35, 1.5, 10.2);
+hideSpot('hide_bed', 2, 5.3, 4.3); hideSpot('hide_attic', 2, 10.6, 8.2); hideSpot('hide_guest', 2, 5.2, 11.3);
+inspect('musicbox', 2, 8.5, 2.3, 'تشغيل الصندوق', function () {
+  if (S.mbDone) { toast('الصندوق صامت الآن. الدرج السفلي مفتوح وفارغ.'); return; }
+  openMusic();
+}, '🎵').mesh = marker(2, 8.5, 1.2, 2.3);
+
+// ---- ground floor
+inspect('fireplace', 1, 3.0, 0.9, 'فحص المدفأة', function () {
+  S.dig[0] = 3; codeLog();
+  showCard('المدفأة', 'في الرماد قصاصة محروقة:<br>«... الرقم الأول: <b>٣</b> ...»', [['حسنًا']]);
+}).mesh = marker(1, 3.0, 1.5, 0.9);
+pickup('fuse', 1, 7.4, 0.8, 1.15, 'fuse', 'التقاط الفيوز', 'وجدتَ فيوزًا في الدرج. ربما يناسب صندوق الكهرباء في القبو.', function () { addLog('fuse', 'فيوز: لصندوق الكهرباء (غرفة المرجل في القبو).'); });
+inspect('fridge', 1, 10.4, 1.4, 'فحص الثلاجة', function () {
+  S.dig[1] = 7; codeLog();
+  showCard('الثلاجة', 'على الباب ملاحظة بمغناطيس:<br>«... الرقم الثاني: <b>٧</b> ...»', [['حسنًا']]);
+}).mesh = marker(1, 10.4, 2.1, 1.4);
+inspect('safe', 1, 11.7, 3.6, 'فتح الخزنة', function () {
+  if (S.inv.basement) { toast('الخزنة فارغة الآن.'); return; }
+  openCode('الخزنة', 3, '371', function () {
+    S.inv.basement = true; refreshHUD(); addLog('k3', 'مفتاح القبو: لباب غرفة الطعام.');
+    tone(660, .2, .5, 'sine'); toast('انفتحت الخزنة. وجدتَ مفتاح القبو.');
+  });
+}, '🔢').mesh = marker(1, 11.7, 1.0, 3.6);
+inspect('clock', 1, 0.7, 9.5, 'فحص الساعة', function () {
+  S.dig[2] = 1; codeLog();
+  showCard('ساعة الجد', 'توقفت عند منتصف الليل. خلف الواجهة الزجاجية ورقة صغيرة:<br>«... الرقم الأخير: <b>١</b>».', [['حسنًا']]);
+}).mesh = marker(1, 0.7, 2.2, 9.5);
+hideSpot('hide_living', 1, 5.4, 0.7); hideSpot('hide_hall', 1, 5.3, 11.4);
+
+// ---- basement
+inspect('fusebox', 0, 4.3, 0.55, 'تركيب الفيوز', function () {
+  if (S.power) { toast('الكهرباء تعمل.'); return; }
+  if (!S.inv.fuse) { toast('صندوق الكهرباء ينقصه فيوز.'); return; }
+  S.inv.fuse = false; S.power = true; refreshHUD(); tone(90, .5, 1.2, 'sawtooth');
+  toast('عادت الكهرباء. سمعتَ شيئًا يتحرك في أعلى البيت...');
+  addLog('power', 'الكهرباء تعمل. «حارسة التهويدة» استيقظت.');
+  wakeKeeper();
+}, '⚡').mesh = marker(0, 4.3, 1.1, 0.5);
+hideSpot('hide_store', 0, 10.4, 3.5); hideSpot('hide_work', 0, 10.6, 8.2);
+pickup('key_front', 0, 13.5, 1.4, 1.15, 'front', 'التقاط المفتاح', 'وجدتَ مفتاح الباب الأمامي! اصعد إلى الطابق الأرضي واخرج.', function () { addLog('k4', 'مفتاح الباب الأمامي: اهرب!'); });
+INTS[INTS.length - 1].vis = function () { return !INTS[INTS.length - 1].done && !!S.unl.ritual; };
+
+// ---- doors as interactables
+DOORS.forEach(function (d) {
+  I({ id: 'door_' + d.id, l: d.l, x: d.cx, z: d.cz, r: 1.75, door: d,
+    vis: function () { return !d.open; },
+    ic: '🚪', lb: 'فتح',
+    dyn: function (o) {
+      if (!d.lock) { o.ic = '🚪'; o.lb = 'فتح'; return; }
+      var has = hasKey(d);
+      o.ic = has ? '🔑' : '🔒'; o.lb = has ? 'فتح بالمفتاح' : 'مقفل';
+      if (d.lock === 'ritual') { o.ic = S.power ? '🔢' : '🔒'; o.lb = S.power ? 'إدخال الرمز' : 'مقفل'; }
+      if (d.lock === 'front') { o.ic = has ? '🔑' : '🔒'; o.lb = has ? 'الخروج' : 'مقفل'; }
+    },
+    act: function () { useDoor(d); } });
+});
+function hasKey(d) {
+  if (!d.lock) return true;
+  if (d.lock === 'ritual') return !!S.power;
+  return !!S.inv[d.lock] || !!S.unl[d.lock];
+}
+function openDoor(d) { d.open = true; tone(180, .15, .3, 'triangle'); }
+function useDoor(d) {
+  if (d.open) return;
+  if (!d.lock) { openDoor(d); return; }
+  if (d.lock === 'ritual') {
+    if (!S.power) { toast('الباب الكهربائي لا يعمل. لا توجد كهرباء في القبو.'); return; }
+    openCode('الباب الكهربائي', 4, '1964', function () { S.unl.ritual = true; openDoor(d); toast('انفتح الباب الكهربائي.'); addLog('rit', 'الغرفة الأخيرة مفتوحة: خذ المفتاح من المذبح.'); });
+    return;
+  }
+  if (d.lock === 'front') {
+    if (!S.inv.front) { toast('الباب الأمامي مقفل. تحتاج مفتاحه.'); return; }
+    openDoor(d); win(); return;
+  }
+  if (S.inv[d.lock] || S.unl[d.lock]) { S.unl[d.lock] = true; openDoor(d); toast('فتحتَ ' + d.name + ' بالمفتاح.'); return; }
+  toast(d.name + ' مقفل. تحتاج مفتاحًا مناسبًا.');
+}
 
 // ================= keeper =================
-var K = { x: 20, z: 3.5, state: 'sleep', path: null, node: null, pause: 0, lastX: 0, lastZ: 0, lose: 0, nearHide: 0, group: new THREE.Group(), phase: 0, ry: 0 };
+var K = { x: 8, z: 6, y: 0, state: 'sleep', path: [], pause: 0, lose: 0, last: null, group: new THREE.Group(), ry: 0 };
 (function () {
   var g = K.group;
   var dress = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.58, 1.55, 12, 1, true), new THREE.MeshLambertMaterial({ color: 0xcfc6b2, side: THREE.DoubleSide, emissive: 0x15120e }));
@@ -389,149 +562,126 @@ var K = { x: 20, z: 3.5, state: 'sleep', path: null, node: null, pause: 0, lastX
   g.visible = false; scene.add(g);
 })();
 
-// waypoint graph
-var NODES = {}, NLIST = [];
-function node(id, x, z, room, links) { var n = { id: id, x: x, z: z, room: room, links: links || [] }; NODES[id] = n; NLIST.push(n); }
-node('Ce', 1.5, 9, 'corr', ['Ca']);
-node('Ca', 4, 9, 'corr', ['Cb', 'Bd', 'Ld']);
-node('Cb', 12, 9, 'corr', ['Cc', 'Nd', 'Hd']);
-node('Cc', 20, 9, 'corr', ['Sd', 'Kd', 'Cf']);
-node('Cf', 22.5, 9, 'corr', []);
-node('Bd', 4, 6.2, 'bed', ['Bc']); node('Bc', 4, 3.6, 'bed', []);
-node('Nd', 12, 6.2, 'nur', ['Nc']); node('Nc', 12, 4.8, 'nur', []);
-node('Sd', 20, 6.2, 'study', ['Sc']); node('Sc', 20, 3.6, 'study', []);
-node('Ld', 4, 11.8, 'liv', ['Lc']); node('Lc', 4, 14.2, 'liv', []);
-node('Hd', 12, 11.8, 'hall', ['Hc']); node('Hc', 12, 14.8, 'hall', []);
-node('Kd', 20, 11.8, 'kit', ['Kc']); node('Kc', 20, 15.8, 'kit', []);
-(function () { // make links symmetric
-  NLIST.forEach(function (n) { n.links.forEach(function (id) { if (NODES[id].links.indexOf(n.id) < 0) NODES[id].links.push(n.id); }); });
-})();
-function nodeActive(n) {
-  if (n.room === 'kit') return S.kitchenOpen;
-  if (n.room === 'nur') return S.nurseryOpen;
-  return true;
-}
-function segHit(ax, az, bx, bz, r) {
-  var dx = bx - ax, dz = bz - az, t0 = 0, t1 = 1, p, q, i;
-  var ps = [-dx, dx, -dz, dz], qs = [ax - r[0], r[2] - ax, az - r[1], r[3] - az];
-  for (i = 0; i < 4; i++) {
-    p = ps[i]; q = qs[i];
-    if (p === 0) { if (q < 0) return false; }
-    else { var t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } }
+// ---- keeper waypoint graph
+var NODES = [], NID = {};
+function nd(id, x, z, l, y, lock) { var n = { id: id, x: x, z: z, l: l, y: y === undefined ? LV[l] : y, links: [], lock: lock || null }; NODES.push(n); NID[id] = n; return n; }
+function lk(a, b) { NID[a].links.push(NID[b]); NID[b].links.push(NID[a]); }
+(function () {
+  for (var l = 0; l < 3; l++) {
+    var p = 'L' + l + '_';
+    nd(p + 'c0', 3, 6, l); nd(p + 'c1', 8.2, 6, l); nd(p + 'c2', 13.3, 6, l);
+    lk(p + 'c0', p + 'c1'); lk(p + 'c1', p + 'c2');
+    var nlock = [null, l === 2 ? 'nursery' : l === 1 ? 'kitchen' : null, l === 0 ? 'ritual' : null];
+    nd(p + 'n0', 3, 2.5, l); nd(p + 'n1', 8.5, 2.5, l, undefined, nlock[1]); nd(p + 'n2', 13.5, 2.5, l, undefined, nlock[2]);
+    nd(p + 'd0n', 3, 5, l); nd(p + 'd1n', 8.5, 5, l, undefined, nlock[1]); nd(p + 'd2n', 13.5, 5, l, undefined, nlock[2]);
+    lk(p + 'n0', p + 'd0n'); lk(p + 'd0n', p + 'c0'); lk(p + 'n1', p + 'd1n'); lk(p + 'd1n', p + 'c1'); lk(p + 'n2', p + 'd2n'); lk(p + 'd2n', p + 'c2');
+    var sl = l === 1 ? 'basement' : (l === 0 ? 'basement' : null);
+    nd(p + 's0', 3, 9.5, l); nd(p + 's1', 9.2, 9.2, l); nd(p + 's2', 13, 9.5, l, undefined, sl);
+    nd(p + 'd0s', 3, 7.3, l); nd(p + 'd1s', 8.2, 7.3, l); nd(p + 'd2s', 13, 7.3, l, undefined, l === 1 ? 'basement' : (l === 0 ? 'basement' : null));
+    lk(p + 's0', p + 'd0s'); lk(p + 'd0s', p + 'c0'); lk(p + 's1', p + 'd1s'); lk(p + 'd1s', p + 'c1'); lk(p + 's2', p + 'd2s'); lk(p + 'd2s', p + 'c2');
   }
-  return true;
-}
-function clearLOS(ax, az, bx, bz) {
-  var i, dr = doorRects();
-  for (i = 0; i < WALLS.length; i++) if (segHit(ax, az, bx, bz, WALLS[i])) return false;
-  for (i = 0; i < dr.length; i++) if (segHit(ax, az, bx, bz, dr[i])) return false;
-  return true;
-}
-function nearestNode(x, z) {
-  var best = null, bd = 1e9;
-  NLIST.forEach(function (n) {
-    if (!nodeActive(n)) return;
-    var d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z);
-    if (d < bd && clearLOS(x, z, n.x, n.z)) { bd = d; best = n; }
-  });
-  if (!best) NLIST.forEach(function (n) { if (!nodeActive(n)) return; var d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z); if (d < bd) { bd = d; best = n; } });
-  return best;
+  // up stairs
+  nd('U_lane', 9.2, 11.4, 1); nd('U_pre', 7.2, 11.4, 1); nd('U_bot', 7.2, 10.8, 1, 0); nd('U_top', 7.2, 7.5, 2, STEP);
+  lk('L1_s1', 'U_lane'); lk('U_lane', 'U_pre'); lk('U_pre', 'U_bot'); lk('U_bot', 'U_top'); lk('U_top', 'L2_d1s');
+  // down stairs
+  nd('D_top', 15, 7.6, 1, 0, 'basement'); nd('D_bot', 15, 11.0, 0, -STEP, 'basement'); nd('D_out', 14, 11.5, 0, -STEP, 'basement');
+  lk('L1_s2', 'D_top'); lk('D_top', 'D_bot'); lk('D_bot', 'D_out'); lk('D_out', 'L0_s2');
+})();
+function nodeOpen(n) { return !n.lock || !!S.unl[n.lock]; }
+function levelOf(y) { return y > 1.45 ? 2 : (y < -1.45 ? 0 : 1); }
+function nearestNode(x, z, y) {
+  var b = null, bd = 1e9;
+  for (var i = 0; i < NODES.length; i++) {
+    var n = NODES[i]; if (!nodeOpen(n)) continue;
+    var d = Math.hypot(n.x - x, n.z - z) + Math.abs(n.y - y) * 2.5;
+    if (d < bd) { bd = d; b = n; }
+  }
+  return b;
 }
 function bfs(a, b) {
-  if (a === b) return [a];
-  var prev = {}, q = [a], seen = {}; seen[a.id] = 1;
+  if (a === b) return [];
+  var prev = {}, q = [a]; prev[a.id] = null;
   while (q.length) {
     var c = q.shift();
     if (c === b) break;
-    for (var i = 0; i < c.links.length; i++) {
-      var nx = NODES[c.links[i]];
-      if (!nodeActive(nx) || seen[nx.id]) continue;
-      seen[nx.id] = 1; prev[nx.id] = c; q.push(nx);
-    }
+    for (var i = 0; i < c.links.length; i++) { var n = c.links[i]; if (!nodeOpen(n) || n.id in prev) continue; prev[n.id] = c; q.push(n); }
   }
-  if (!seen[b.id]) return null;
-  var path = [], cur = b;
-  while (cur) { path.unshift(cur); cur = prev[cur.id]; }
-  return path;
+  if (!(b.id in prev)) return null;
+  var p = []; var c2 = b; while (c2 !== a) { p.unshift(c2); c2 = prev[c2.id]; }
+  return p;
 }
-function stepToward(tx, tz, speed, dt) {
-  var px = tx, pz = tz;
-  if (!clearLOS(K.x, K.z, tx, tz)) {
-    var a = nearestNode(K.x, K.z), b = nearestNode(tx, tz);
-    if (a && b) {
-      var path = bfs(a, b);
-      if (path) {
-        var nxt = path[0];
-        if (path.length > 1 && Math.hypot(nxt.x - K.x, nxt.z - K.z) < 0.5) nxt = path[1];
-        px = nxt.x; pz = nxt.z;
-      }
-    }
+function segRect(ax, az, bx, bz, r) {
+  var dx = bx - ax, dz = bz - az, t0 = 0, t1 = 1, p = [-dx, dx, -dz, dz], q = [ax - r.x0, r.x1 - ax, az - r.z0, r.z1 - az];
+  for (var i = 0; i < 4; i++) {
+    if (p[i] === 0) { if (q[i] < 0) return false; }
+    else { var t = q[i] / p[i]; if (p[i] < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } }
   }
-  var dx = px - K.x, dz = pz - K.z, d = Math.hypot(dx, dz);
-  if (d > 0.01) {
-    var st = Math.min(d, speed * dt);
-    K.x += dx / d * st; K.z += dz / d * st;
-    var want = Math.atan2(dx, dz), da = want - K.ry;
-    while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
-    K.ry += da * Math.min(1, dt * 6);
-  }
-  return Math.hypot(tx - K.x, tz - K.z);
+  return true;
+}
+function los(ax, az, bx, bz, l) {
+  for (var i = 0; i < COL.length; i++) { var c = COL[i]; if (c.l === l && segRect(ax, az, bx, bz, c)) return false; }
+  for (var j = 0; j < DOORS.length; j++) { var d = DOORS[j]; if (d.l === l && !d.open && segRect(ax, az, bx, bz, d.rect)) return false; }
+  return true;
+}
+function moveK(tx, tz, ty, sp, dt) {
+  var dx = tx - K.x, dz = tz - K.z, dist = Math.hypot(dx, dz), step = Math.min(sp * dt, dist);
+  if (dist > 0.001) { K.x += dx / dist * step; K.z += dz / dist * step; K.y += (ty - K.y) * (step / dist); K.ry = Math.atan2(dx, dz); }
+  return dist - step;
 }
 function wakeKeeper() {
-  if (S.awake) return;
-  S.awake = true; K.state = 'patrol'; K.group.visible = true;
-  var n = NODES.Sc; K.x = n.x; K.z = n.z; K.pause = 2;
-  toast('بدأ لحنٌ بعيد يُعزف في الظلام...', 4500);
+  S.awake = true; K.state = 'patrol'; K.path = []; K.pause = 1.5;
+  var best = null, bd = -1;
+  for (var i = 0; i < NODES.length; i++) {
+    var n = NODES[i]; if (!nodeOpen(n)) continue;
+    var d = Math.hypot(n.x - P.x, n.z - P.z) + Math.abs(n.y - P.y) * 4;
+    if (d > bd && (n.id.indexOf('_n') > 0 || n.id.indexOf('_s') > 0)) { bd = d; best = n; }
+  }
+  K.x = best.x; K.z = best.z; K.y = best.y; K.group.visible = true;
+  if (DBG.keeper) { var kk = DBG.keeper.split(','); K.x = +kk[0]; K.z = +kk[1]; K.y = LV[+kk[2]]; K.state = 'patrol'; }
 }
 function updateKeeper(dt) {
-  if (!S.awake || DBG.freeze) { if (S.awake) K.group.position.set(K.x, 0, K.z); return; }
-  var dx = P.x - K.x, dz = P.z - K.z, dist = Math.hypot(dx, dz);
-  var los = clearLOS(K.x, K.z, P.x, P.z);
-  var range = (S.flash ? 11 : 5) + (P.run ? 3 : 0);
-  var sees = !S.hidden && los && dist < range;
-  if (sees) {
-    if (K.state !== 'chase') { K.state = 'chase'; stinger(); }
-    K.lastX = P.x; K.lastZ = P.z; K.lose = 0;
-  }
-  var speed = 1.5;
+  if (!S.awake || DBG.freeze) return;
+  var kl = levelOf(K.y), pl = levelOf(P.y);
+  var dist = Math.hypot(P.x - K.x, P.z - K.z);
+  var sees = !S.hidden && kl === pl && Math.abs(P.y - K.y) < 1.2 && dist < 12 && los(K.x, K.z, P.x, P.z, kl);
+  if (sees) { K.state = 'chase'; K.lose = 0; K.last = { x: P.x, z: P.z, y: P.y }; }
+  else if (K.state === 'chase') { K.lose += dt; if (K.lose > 6) { K.state = 'patrol'; K.path = []; } }
+  var sp;
   if (K.state === 'chase') {
-    speed = 3.45;
-    if (S.hidden) { K.state = 'patrol'; K.path = null; K.node = null; }
-    else if (sees) stepToward(P.x, P.z, speed, dt);
+    sp = 3.2;
+    if (sees) { moveK(P.x, P.z, LV[pl], sp, dt); K.path = []; }
     else {
-      K.lose += dt;
-      var rem = stepToward(K.lastX, K.lastZ, speed, dt);
-      if (K.lose > 5 || (rem < 0.4 && K.lose > 1.5)) { K.state = 'patrol'; K.node = null; K.pause = 1.2; }
+      if (!K.path.length && K.last) { var a = nearestNode(K.x, K.z, K.y), b = nearestNode(K.last.x, K.last.z, K.last.y); var pp = a && b ? bfs(a, b) : null; K.path = pp || []; }
+      if (K.path.length) { var n = K.path[0]; if (moveK(n.x, n.z, n.y, sp, dt) < 0.12) K.path.shift(); }
     }
-    if (dist < 0.95 && los && !S.hidden) caught();
   } else {
+    sp = 1.5;
     if (K.pause > 0) { K.pause -= dt; }
     else {
-      if (!K.node) {
-        var pool = NLIST.filter(nodeActive);
-        if (Math.random() < 0.45 && !S.hidden) K.node = nearestNode(P.x, P.z);
-        else K.node = pool[(Math.random() * pool.length) | 0];
-        if (K.node && Math.hypot(K.node.x - K.x, K.node.z - K.z) < 1) K.node = null;
+      if (!K.path.length) {
+        var a2 = nearestNode(K.x, K.z, K.y), tries = 0, pth = null;
+        while (tries++ < 8 && !pth) { var t = NODES[Math.floor(Math.random() * NODES.length)]; if (!nodeOpen(t) || t === a2 || Math.hypot(t.x - K.x, t.z - K.z) < 3) continue; pth = bfs(a2, t); }
+        K.path = pth || []; if (!K.path.length) K.pause = 1;
       }
-      if (K.node) {
-        var r = stepToward(K.node.x, K.node.z, speed, dt);
-        if (r < 0.45) { K.node = null; K.pause = 1.5 + Math.random() * 2; }
-      }
+      if (K.path.length) { var n2 = K.path[0]; if (moveK(n2.x, n2.z, n2.y, sp, dt) < 0.12) { K.path.shift(); if (!K.path.length) K.pause = 1 + Math.random() * 2.5; } }
     }
-    if (S.hidden) {
-      if (dist < 2.3) { K.nearHide += dt; if (K.nearHide > 6) { caught(); } } else K.nearHide = Math.max(0, K.nearHide - dt);
-    } else K.nearHide = 0;
   }
-  K.phase += dt * (K.state === 'chase' ? 9 : 4);
-  K.group.position.set(K.x, Math.sin(K.phase) * 0.03, K.z);
-  K.group.rotation.y = K.ry; K.group.rotation.z = Math.sin(K.phase * 0.5) * 0.04;
+  // open unlocked doors in her way
+  for (var i = 0; i < DOORS.length; i++) { var d = DOORS[i]; if (!d.open && d.l === levelOf(K.y) && Math.hypot(d.cx - K.x, d.cz - K.z) < 1.6 && (!d.lock || S.unl[d.lock])) d.open = true; }
+  if (!S.hidden && Math.hypot(P.x - K.x, P.z - K.z) < 0.95 && Math.abs(P.y - K.y) < 1.3) caught();
 }
 function caught() {
-  if (S.over) return;
-  S.over = true;
-  showEnd('أمسكت بك حارسة التهويدة', 'توقف اللحن فجأة... حاول مرة أخرى. نصيحة: أطفئ المصباح عندما تبتعد، واختبئ في الخزانة قبل أن تراك.', 'إعادة المحاولة', true);
+  if (S.over) return; S.over = true; stinger();
+  setTimeout(function () { showEnd('أمسكت بك الحارسة', 'سمعتَ التهويدة تتوقف خلفك... حاول الاختباء في الخزائن عند اقترابها، ولا تركض في الظلام بلا هدف.', 'إعادة المحاولة'); }, 700);
 }
+function win() {
+  if (S.over) return; S.over = true; tone(523, .3, 1.5, 'triangle');
+  setTimeout(function () { showEnd('نجوتَ من بيت التهويدة', 'فتحتَ الباب الأمامي وخرجتَ إلى الفجر. هذه نهاية اليوم الأول. اليوم الثاني قادم في النسخة التالية.', 'العب مجددًا'); }, 500);
+}
+function showEnd(t, b, btn) { $('e-title').textContent = t; $('e-body').textContent = b; $('e-btn').textContent = btn; $('end').style.display = 'flex'; if (document.exitPointerLock) document.exitPointerLock(); }
+$('e-btn').onclick = function () { location.href = location.pathname + '?skip=1'; };
 
+// ================= audio =================
 // ================= audio =================
 var AC = null, master = null, boxGain = null, droneGain = null, melodyIdx = 0, audioTimer = null;
 var MEL = [0, 3, 7, 12, 7, 3, 0, 3, 7, 10, 7, 3, -2, 3, 5, 10, 5, 3, 0, 5, 8, 12, 8, 5, 3, 0, 3, -2, 0];
@@ -572,359 +722,394 @@ function stinger() {
 }
 var MKNOTES = [523.25, 659.25, 783.99, 987.77];
 
-// ================= UI helpers =================
+// ================= UI =================
 var toastT = null;
 function toast(t, ms) {
-  var el = $('toast'); el.textContent = t; el.style.opacity = 1;
-  clearTimeout(toastT); toastT = setTimeout(function () { el.style.opacity = 0; }, ms || 2500);
+  var e = $('toast'); e.textContent = t; e.style.opacity = 1; clearTimeout(toastT);
+  toastT = setTimeout(function () { e.style.opacity = 0; }, ms || 3200);
 }
-function showModal(title, body) { $('m-title').textContent = title; $('m-body').textContent = body; $('modal').style.display = 'flex'; S.modalOpen = true; if (document.exitPointerLock) document.exitPointerLock(); }
-$('m-close').onclick = function () { $('modal').style.display = 'none'; S.modalOpen = false; };
-function showEnd(title, body, btn, dead) {
-  $('e-title').textContent = title; $('e-body').textContent = body; $('e-btn').textContent = btn;
-  $('end').style.display = 'flex'; if (document.exitPointerLock) document.exitPointerLock();
-}
-$('e-btn').onclick = function () { location.reload(); };
-function refreshHUD() {
-  var inv = [];
-  if (S.key) inv.push('🗝 مفتاح المطبخ');
-  if (S.fuse && !S.power) inv.push('🔌 فيوز');
-  var n = (S.notes.A ? 1 : 0) + (S.notes.B ? 1 : 0) + (S.notes.C ? 1 : 0);
-  if (n || S.notes.D) inv.push('📜 صفحات ' + n + '/3');
-  if (S.front) inv.push('🗝 مفتاح الباب الأمامي');
-  $('inv').innerHTML = inv.map(function (t) { return '<div class="chip">' + t + '</div>'; }).join('');
-  var o;
-  if (S.front) o = 'اهرب من الباب الأمامي في القاعة الجنوبية';
-  else if (S.solved) o = 'خذ مفتاح الباب الأمامي';
-  else if (S.nurseryOpen) o = 'اجمع الصفحات (' + n + '/3) واعزف اللحن على الصندوق الموسيقي في غرفة الأطفال';
-  else if (S.power) o = 'افتح غرفة الأطفال (الباب في الممر الشمالي)';
-  else if (S.fuse) o = 'ركّب الفيوز في صندوق الكهرباء في الممر';
-  else if (S.kitchenOpen) o = 'خذ الفيوز من المطبخ';
-  else if (S.key) o = 'افتح باب المطبخ (الممر الجنوبي الشرقي)';
-  else o = 'ابحث عن مفتاح المطبخ في غرفة المعيشة';
-  $('obj').textContent = 'الهدف: ' + o;
-}
-
-// ================= interactables =================
-var INTS = [];
-function I(id, x, z, r, label, act) { INTS.push({ id: id, x: x, z: z, r: r, label: label, act: act }); }
-function readNote(k, title, text) {
-  if (!S.notes[k]) { S.notes[k] = true; noteMeshes[k].visible = false; }
-  showModal(title, text); refreshHUD();
-}
-I('chest', 1.2, 13.6, 1.7, function () { return S.key ? null : 'افتح الخزانة'; }, function () {
-  S.key = true; toast('وجدتَ مفتاح المطبخ داخل الخزانة', 3000); refreshHUD();
-});
-I('noteA', 4.2, 14.8, 1.6, function () { return S.notes.A ? null : 'اقرأ الصفحة الممزقة'; }, function () {
-  readNote('A', 'دفتر المربية — صفحة 1', 'كل ليلة كان اللحن يبدأ بالأحمر، ثم يجيبه الأزرق...');
-});
-I('kitchenDoor', 20, 10.4, 1.8, function () { return S.kitchenOpen ? null : (S.key ? 'افتح باب المطبخ' : 'الباب مقفل'); }, function () {
-  if (!S.key) { toast('الباب مقفل. تحتاج إلى مفتاح المطبخ.', 2500); return; }
-  S.kitchenOpen = true; dKitchen.locked = false; openDoor(dKitchen); toast('فُتح باب المطبخ', 2000); refreshHUD();
-});
-I('noteB', 19.5, 14.0, 1.6, function () { return S.notes.B ? null : 'اقرأ الصفحة الممزقة'; }, function () {
-  readNote('B', 'دفتر المربية — صفحة 2', 'وبعد الأزرق يأتي الأخضر، هكذا أمرتني السيدة.');
-});
-I('fuse', 22.6, 16.4, 1.6, function () { return S.fuse ? null : 'خذ الفيوز'; }, function () {
-  S.fuse = true; fuseMesh.visible = false; refreshHUD(); wakeKeeper();
-});
-I('fusebox', 8, 10.2, 1.6, function () { return S.power ? null : (S.fuse ? 'ركّب الفيوز' : 'صندوق الكهرباء (ينقصه فيوز)'); }, function () {
-  if (!S.fuse) { toast('صندوق الكهرباء ينقصه فيوز.', 2500); return; }
-  S.power = true; S.fuse = false; S.nurseryOpen = true; dNursery.locked = false; openDoor(dNursery);
-  lampCorr.intensity = 0.9; lampNursery.intensity = 0.7; fuseLamp.material.color.set(0x33ff66);
-  toast('عادت الكهرباء. انفتح باب غرفة الأطفال.', 3500); refreshHUD();
-});
-I('noteC', 1.2, 5.4, 1.6, function () { return S.notes.C ? null : 'اقرأ الصفحة الممزقة'; }, function () {
-  readNote('C', 'دفتر المربية — صفحة 3', 'ولا ينتهي اللحن إلا بالأصفر. وإن أخطأت العزف استيقظت هي.');
-});
-I('noteD', 21, 2.0, 1.6, function () { return S.notes.D ? null : 'اقرأ المذكرة'; }, function () {
-  readNote('D', 'مذكرة على المكتب', 'اليوم الأول: الدمية لا تنام. سمعتُ الصندوق الموسيقي يعزف وحده. إن رأيتها فلا تركض نحوها. اختبئ في الخزانة واصمت.');
-});
-I('musicbox', 12, 4.0, 1.7, function () { return S.solved ? null : 'شغّل الصندوق الموسيقي'; }, function () { openPuzzle(); });
-function hideSpot(id, x, z) {
-  I(id, x, z + 1.0, 1.4, function () { return S.hidden ? null : 'اختبئ في الخزانة'; }, function () {
-    S.hidden = true; P.hideAt = { x: P.x, z: P.z, yaw: P.yaw }; P.x = x; P.z = z + 0.1; P.yaw = Math.PI; P.pitch = 0;
-    toast('اختبأتَ. اضغط للخروج عند الأمان.', 2500);
+function showCard(title, html, btns) {
+  var c = $('card'); c.innerHTML = '<h3>' + title + '</h3><div>' + html + '</div><div id="cbtns"></div>';
+  (btns || [['إغلاق']]).forEach(function (b) {
+    var e = document.createElement('button'); e.className = 'btn'; e.textContent = b[0];
+    e.onclick = function () { var r = b[1] ? b[1]() : null; if (r !== false) closeCard(); };
+    $('cbtns').appendChild(e);
   });
-}
-hideSpot('wardLiv', 6.7, 11.7); hideSpot('wardBed', 6.9, 0.7); hideSpot('wardStudy', 17.2, 0.7);
-I('front', 12, 17.2, 2.2, function () { return S.won ? null : (S.front ? 'افتح الباب الأمامي' : 'الباب الأمامي مقفل'); }, function () {
-  if (!S.front) { toast('الباب الأمامي مقفل. تحتاج إلى المفتاح.', 2500); return; }
-  S.won = true; openDoor(dFront);
-  showEnd('نجوت من الليلة الأولى', 'خرجتَ من بيت التهويدة... لكن اللحن ما زال يُسمع من النافذة. (نهاية النموذج الأولي — اليوم الثاني قادم)', 'العب مرة أخرى');
-});
-function nearest() {
-  var f = new THREE.Vector3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw)), best = null, bs = 1e9;
-  for (var i = 0; i < INTS.length; i++) {
-    var it = INTS[i], dx = it.x - P.x, dz = it.z - P.z, d = Math.hypot(dx, dz);
-    if (d > it.r) continue;
-    var lab = it.label(); if (!lab) continue;
-    var dot = d < 0.01 ? 1 : (dx * f.x + dz * f.z) / d;
-    if (dot < 0.35 && d > 0.9) continue;
-    var sc = d - dot * 0.8;
-    if (sc < bs) { bs = sc; best = it; best.cur = lab; }
-  }
-  return best;
-}
-function tryInteract() {
-  if (!S.started || S.over || S.won || S.modalOpen || S.puzzleOpen) return;
-  if (S.hidden) { // leave wardrobe
-    S.hidden = false; var h = P.hideAt; P.x = h.x; P.z = h.z; P.yaw = h.yaw; return;
-  }
-  var it = nearest(); if (it) it.act();
-}
-
-// ================= puzzle UI =================
-var COLS = ['#c0392b', '#2e5fa8', '#2e8b57', '#d4a82c'];
-(function () {
-  for (var i = 0; i < 4; i++) {
-    var b = document.createElement('div'); b.className = 'mk'; b.style.background = COLS[i]; b.setAttribute('data-i', i);
-    b.onclick = (function (i) { return function () { pressKey(i); }; })(i);
-    $('keys').appendChild(b);
-    var s = document.createElement('div'); s.className = 'slot'; $('slots').appendChild(s);
-  }
-})();
-function openPuzzle() {
-  S.puzzleOpen = true; entered = []; $('pz-msg').textContent = ''; drawSlots(); $('puzzle').style.display = 'flex';
+  $('modal').style.display = 'flex'; S.modal = true; stopMove();
   if (document.exitPointerLock) document.exitPointerLock();
 }
-function closePuzzle() { S.puzzleOpen = false; $('puzzle').style.display = 'none'; }
-$('pz-close').onclick = closePuzzle;
-function drawSlots() {
-  var s = $('slots').children;
-  for (var i = 0; i < 4; i++) s[i].style.background = i < entered.length ? COLS[entered[i]] : '#120f0b';
+function closeCard() { $('modal').style.display = 'none'; S.modal = false; }
+function openNotes() {
+  var h = '';
+  var inv = Object.keys(CHIPS).filter(function (k) { return S.inv[k]; }).map(function (k) { return CHIPS[k]; });
+  h += '<div class="note"><b>الحقيبة:</b> ' + (inv.length ? inv.join(' · ') : 'فارغة') + '</div>';
+  if (!S.log.length) h += '<div class="note">لا توجد ملاحظات بعد. افحص الأشياء حولك.</div>';
+  S.log.forEach(function (e) { h += '<div class="note">' + e[1] + '</div>'; });
+  showCard('📓 الملاحظات', h, [['إغلاق']]);
 }
-function pressKey(i) {
-  if (S.solved) return;
-  tone(MKNOTES[i], 0.3, 1.2, 'triangle');
-  entered.push(i); drawSlots();
-  var ok = true;
-  for (var k = 0; k < entered.length; k++) if (entered[k] !== SEQ[k]) ok = false;
-  if (!ok) {
-    $('pz-msg').textContent = 'لحن خاطئ! سمعتَ خطوات تقترب...';
-    entered = []; setTimeout(drawSlots, 500);
-    if (S.awake) { K.state = 'patrol'; K.node = NODES.Nc; K.pause = 0; }
-    tone(120, 0.4, 0.8, 'sawtooth');
-    return;
+function openCode(title, n, code, onOk) {
+  var ent = '';
+  function render() {
+    var d = ''; for (var i = 0; i < n; i++) d += '<div class="dig">' + (i < ent.length ? ad(ent.charAt(i)) : '') + '</div>';
+    $('cdig').innerHTML = d;
   }
-  if (entered.length === 4) {
-    S.solved = true; $('pz-msg').textContent = 'انفتح الدرج السري... وجدتَ مفتاح الباب الأمامي.';
-    S.front = true; refreshHUD();
-    setTimeout(closePuzzle, 1800);
+  var html = '<div>أدخل الرمز المكوّن من ' + ad(n) + ' أرقام.</div><div class="row" id="cdig"></div><div class="pad" id="cpad"></div><div id="cmsg" style="min-height:24px;color:#e0a070"></div>';
+  showCard(title, html, [['ابتعد']]);
+  var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'];
+  keys.forEach(function (k) {
+    var b = document.createElement('button'); b.className = 'btn'; b.textContent = k === 'del' ? '⌫' : k === 'ok' ? '✔' : ad(k);
+    b.onclick = function () {
+      if (k === 'del') ent = ent.slice(0, -1);
+      else if (k === 'ok') {
+        if (ent === code) { closeCard(); onOk(); return; }
+        $('cmsg').textContent = 'رمز خاطئ'; tone(120, .3, .5, 'sawtooth'); ent = '';
+      } else if (ent.length < n) { ent += k; tone(440 + ent.length * 40, .12, .15, 'sine'); }
+      render();
+    };
+    $('cpad').appendChild(b);
+  });
+  render();
+}
+var COLS = ['#c0392b', '#2e5fa8', '#2e8b57', '#d4a82c'];
+function openMusic() {
+  var ent = [];
+  var html = '<div>اضغط ألوان اللحن بالترتيب الصحيح ليُفتح الدرج السفلي.</div><div class="row" id="mkeys"></div><div class="row" id="mslots"></div><div id="mmsg" style="min-height:24px;color:#e0a070"></div>';
+  showCard('الصندوق الموسيقي', html, [['ابتعد']]);
+  function slots() { var s = $('mslots').children; for (var i = 0; i < 4; i++) s[i].style.background = i < ent.length ? COLS[ent[i]] : '#120f0b'; }
+  for (var i = 0; i < 4; i++) {
+    (function (i) {
+      var b = document.createElement('div'); b.className = 'mk'; b.style.background = COLS[i];
+      b.onclick = function () {
+        tone(MKNOTES[i], .3, 1.0, 'triangle'); ent.push(i); slots();
+        for (var k = 0; k < ent.length; k++) if (ent[k] !== SEQ[k]) { $('mmsg').textContent = 'لحن خاطئ... سمعتَ شيئًا يهمس.'; tone(120, .4, .8, 'sawtooth'); ent = []; setTimeout(slots, 450); return; }
+        if (ent.length === 4) { solveMusic(); $('mmsg').textContent = 'انفتح الدرج السفلي!'; setTimeout(closeCard, 1300); }
+      };
+      $('mkeys').appendChild(b);
+      var s = document.createElement('div'); s.className = 'slot'; $('mslots').appendChild(s);
+    })(i);
   }
 }
+function solveMusic() {
+  if (S.mbDone) return; S.mbDone = true; S.inv.kitchen = true; refreshHUD();
+  addLog('k2', 'مفتاح المطبخ: من الصندوق الموسيقي (الطابق الأرضي).');
+  toast('وجدتَ في الدرج مفتاح المطبخ.');
+}
+function refreshHUD() {
+  var c = Object.keys(CHIPS).filter(function (k) { return S.inv[k]; }).map(function (k) { return '<span class="chip">' + CHIPS[k] + '</span>'; }).join('');
+  $('inv').innerHTML = c;
+  var n = (S.notes.A ? 1 : 0) + (S.notes.B ? 1 : 0) + (S.notes.C ? 1 : 0);
+  var o;
+  if (!S.unl.nursery && !S.inv.nursery) o = 'ابحث في غرفة النوم عن مفتاح.';
+  else if (!S.unl.nursery) o = 'افتح باب غرفة الأطفال (الطابق العلوي).';
+  else if (!S.mbDone) o = 'شغّل الصندوق الموسيقي بالألوان الصحيحة. الأوراق: ' + ad(n) + ' من ٣ (غرفة النوم، الحمّام، العلّية).';
+  else if (!S.unl.kitchen) o = 'انزل إلى الطابق الأرضي وافتح المطبخ.';
+  else if (!S.inv.fuse && !S.power) o = 'خذ الفيوز من المطبخ.';
+  else if (!S.inv.basement && !S.unl.basement) o = 'افتح الخزنة في المكتبة: ابحث عن الأرقام (المدفأة، الثلاجة، الساعة).';
+  else if (!S.unl.basement) o = 'افتح باب غرفة الطعام وانزل إلى القبو.';
+  else if (!S.power) o = 'ركّب الفيوز في صندوق الكهرباء (غرفة المرجل بالقبو).';
+  else if (!S.unl.ritual) o = 'افتح الباب الكهربائي بالرمز (تلميح: السنة في صورة العائلة).';
+  else if (!S.inv.front) o = 'خذ مفتاح الباب الأمامي من المذبح.';
+  else o = 'اهرب من الباب الأمامي في الطابق الأرضي!';
+  $('obj').textContent = 'الهدف: ' + o;
+}
+function lvlLabel() { var l = levelOf(P.y); $('lvl').textContent = l === 2 ? 'الطابق العلوي' : l === 1 ? 'الطابق الأرضي' : 'القبو'; }
+
+// ================= hiding =================
+function enterHide(x, z) {
+  S.hidden = true; P.hx = P.x; P.hz = P.z; P.x = x; P.z = z; $('hideov').style.display = 'block'; tone(150, .2, .3, 'triangle');
+}
+function exitHide() {
+  S.hidden = false; P.x = P.hx; P.z = P.hz; $('hideov').style.display = 'none';
+}
+
+// ================= lights =================
+var ambient = new THREE.AmbientLight(0x555568, 1.0); scene.add(ambient);
+var hemi = new THREE.HemisphereLight(0x7a7a95, 0x2a1d14, 0.55); scene.add(hemi);
+var plight = new THREE.PointLight(0xffd9a0, 1.15, 11, 1.4); scene.add(plight);
+var flash = new THREE.SpotLight(0xfff0d0, 2.2, 24, 0.5, 0.6, 1.2); scene.add(flash); scene.add(flash.target);
+var flashOn = true;
+if (DBG.top) { ambient.intensity = 2.8; hemi.intensity = 1.2; flash.visible = false; plight.visible = false; }
 
 // ================= input =================
 var keys = {}, locked = false;
+var joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 }, look = { id: null, lx: 0, ly: 0 };
+function stopMove() { keys = {}; joy.dx = joy.dy = 0; joy.id = null; look.id = null; $('stick').style.left = '36px'; $('stick').style.top = '36px'; }
 addEventListener('keydown', function (e) {
+  if (S.modal) { if (e.code === 'Escape') closeCard(); return; }
   keys[e.code] = true;
-  if (e.code === 'KeyE') tryInteract();
-  if (e.code === 'KeyF') S.flash = !S.flash;
-  if (e.code === 'Escape') { if (S.puzzleOpen) closePuzzle(); else if (S.modalOpen) $('m-close').onclick(); }
-  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyE' || e.code === 'Enter') doInteract();
+  if (e.code === 'KeyF') toggleFlash();
+  if (e.code === 'KeyN') openNotes();
 });
 addEventListener('keyup', function (e) { keys[e.code] = false; });
 document.addEventListener('pointerlockchange', function () { locked = document.pointerLockElement === renderer.domElement; });
 document.addEventListener('mousemove', function (e) {
-  if (!S.started || S.hidden && false) return;
-  if (locked) { P.yaw -= e.movementX * 0.0022; P.pitch = clamp(P.pitch - e.movementY * 0.0022, -1.2, 1.2); }
+  if (!locked || S.modal || S.hidden === 'x') return;
+  P.yaw -= e.movementX * 0.0022; P.pitch = clamp(P.pitch - e.movementY * 0.0022, -1.2, 1.2);
 });
 renderer.domElement.addEventListener('click', function () {
-  if (S.started && !locked && !isTouch && !S.over && !S.modalOpen && !S.puzzleOpen && renderer.domElement.requestPointerLock) renderer.domElement.requestPointerLock();
+  if (S.started && !S.modal && !S.over && !isTouch && !locked) renderer.domElement.requestPointerLock();
 });
-var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-var joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 }, look = { id: null, lx: 0, ly: 0 };
-if (isTouch) { ['b-act', 'b-fl', 'b-run'].forEach(function (id) { $(id).style.display = 'block'; }); $('hintkeys').style.display = 'none'; }
-addEventListener('touchstart', function (e) {
-  if (!S.started || S.modalOpen || S.puzzleOpen) return;
+function toggleFlash() { flashOn = !flashOn; tone(900, .06, .06, 'square'); }
+$('b-fl').onclick = toggleFlash;
+$('b-run').onclick = function () { P.run = !P.run; $('b-run').className = 'tb' + (P.run ? ' on' : ''); };
+$('b-notes').onclick = openNotes;
+$('act').onclick = doInteract;
+
+function onUI(t) { return t && t.closest && t.closest('button,#modal,#overlay,#end,#rotate'); }
+document.addEventListener('touchstart', function (e) {
+  if (onUI(e.target) || !S.started || S.modal) return;
+  e.preventDefault();
   for (var i = 0; i < e.changedTouches.length; i++) {
     var t = e.changedTouches[i];
-    if (t.target && t.target.className === 'tb') continue;
-    if (t.clientX < innerWidth * 0.45 && joy.id === null) {
-      joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY; joy.dx = joy.dy = 0;
-      var j = $('joy'); j.style.display = 'block'; j.style.left = (t.clientX - 60) + 'px'; j.style.top = (t.clientY - 60) + 'px';
-      $('stick').style.left = '35px'; $('stick').style.top = '35px';
-    } else if (t.clientX >= innerWidth * 0.45 && look.id === null) { look.id = t.identifier; look.lx = t.clientX; look.ly = t.clientY; }
+    if (joy.id === null && t.clientX < 190 && t.clientY > innerHeight - 230) {
+      joy.id = t.identifier; var r = $('joy').getBoundingClientRect(); joy.ox = r.left + r.width / 2; joy.oy = r.top + r.height / 2; moveStick(t);
+    } else if (look.id === null) { look.id = t.identifier; look.lx = t.clientX; look.ly = t.clientY; }
   }
-}, { passive: true });
-addEventListener('touchmove', function (e) {
+}, { passive: false });
+function moveStick(t) {
+  var dx = t.clientX - joy.ox, dy = t.clientY - joy.oy, m = Math.hypot(dx, dy), mx = 46;
+  if (m > mx) { dx = dx / m * mx; dy = dy / m * mx; }
+  joy.dx = dx / mx; joy.dy = dy / mx;
+  $('stick').style.left = (36 + dx) + 'px'; $('stick').style.top = (36 + dy) + 'px';
+}
+document.addEventListener('touchmove', function (e) {
+  if (!S.started || S.modal) return;
+  if (!onUI(e.target)) e.preventDefault();
   for (var i = 0; i < e.changedTouches.length; i++) {
     var t = e.changedTouches[i];
-    if (t.identifier === joy.id) {
-      var dx = t.clientX - joy.ox, dy = t.clientY - joy.oy, l = Math.hypot(dx, dy), m = 46;
-      if (l > m) { dx = dx / l * m; dy = dy / l * m; }
-      joy.dx = dx / m; joy.dy = dy / m; $('stick').style.left = (35 + dx) + 'px'; $('stick').style.top = (35 + dy) + 'px';
-    } else if (t.identifier === look.id) {
-      P.yaw -= (t.clientX - look.lx) * 0.006; P.pitch = clamp(P.pitch - (t.clientY - look.ly) * 0.006, -1.2, 1.2);
+    if (t.identifier === joy.id) moveStick(t);
+    else if (t.identifier === look.id) {
+      P.yaw -= (t.clientX - look.lx) * 0.0062; P.pitch = clamp(P.pitch - (t.clientY - look.ly) * 0.005, -1.2, 1.2);
       look.lx = t.clientX; look.ly = t.clientY;
     }
   }
-  if (e.cancelable && S.started) e.preventDefault();
 }, { passive: false });
 function tend(e) {
   for (var i = 0; i < e.changedTouches.length; i++) {
     var t = e.changedTouches[i];
-    if (t.identifier === joy.id) { joy.id = null; joy.dx = joy.dy = 0; $('joy').style.display = 'none'; }
+    if (t.identifier === joy.id) { joy.id = null; joy.dx = joy.dy = 0; $('stick').style.left = '36px'; $('stick').style.top = '36px'; }
     if (t.identifier === look.id) look.id = null;
   }
 }
-addEventListener('touchend', tend); addEventListener('touchcancel', tend);
-$('b-act').addEventListener('touchstart', function (e) { tryInteract(); e.preventDefault(); }, { passive: false });
-$('b-fl').addEventListener('touchstart', function (e) { S.flash = !S.flash; e.preventDefault(); }, { passive: false });
-$('b-run').addEventListener('touchstart', function (e) { P.runBtn = true; e.preventDefault(); }, { passive: false });
-$('b-run').addEventListener('touchend', function () { P.runBtn = false; });
-$('b-act').addEventListener('click', tryInteract);
+document.addEventListener('touchend', tend); document.addEventListener('touchcancel', tend);
 
 function begin() {
-  $('overlay').style.display = 'none'; S.started = true; initAudio();
-  if (AC && AC.resume) AC.resume();
-  if (!isTouch && renderer.domElement.requestPointerLock) { try { renderer.domElement.requestPointerLock(); } catch (e) {} }
-  refreshHUD();
-  toast('استيقظتَ في غرفة المعيشة. ابحث عن مخرج.', 4000);
+  if (S.started) return;
+  initAudio(); S.started = true; $('overlay').style.display = 'none';
+  try { var el = document.documentElement; if (isTouch && el.requestFullscreen) el.requestFullscreen().then(function () { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {}); }).catch(function () {}); } catch (e) {}
+  if (isTouch) { $('joy').style.display = 'block'; $('b-fl').style.display = 'block'; $('b-run').style.display = 'block'; $('b-notes').style.display = 'block'; }
+  else { $('hintkeys').style.display = 'block'; $('b-notes').style.display = 'block'; }
+  refreshHUD(); lvlLabel();
+  setTimeout(function () { toast('ابحث عن مفتاح في هذه الغرفة. اقترب من الأشياء لتظهر أزرار التفاعل.', 4500); }, 400);
 }
 $('startbtn').onclick = begin;
 
-// ================= player update =================
-function collidePlayer(r) {
-  var rects = WALLS.concat(PROPS, doorRects()), it, i;
-  for (it = 0; it < 2; it++) for (i = 0; i < rects.length; i++) {
-    var b = rects[i], cx = clamp(P.x, b[0], b[2]), cz = clamp(P.z, b[1], b[3]), dx = P.x - cx, dz = P.z - cz, d2 = dx * dx + dz * dz;
-    if (d2 < r * r) {
-      if (d2 > 1e-8) { var d = Math.sqrt(d2); P.x = cx + dx / d * r; P.z = cz + dz / d * r; }
-      else {
-        var l = P.x - b[0], rr = b[2] - P.x, t = P.z - b[1], bt = b[3] - P.z, m = Math.min(l, rr, t, bt);
-        if (m === l) P.x = b[0] - r; else if (m === rr) P.x = b[2] + r; else if (m === t) P.z = b[1] - r; else P.z = b[3] + r;
-      }
-    }
+// ================= interaction =================
+function curInt() {
+  if (S.hidden) return { ic: '🚪', lb: 'خروج', act: exitHide };
+  var best = null, bd = 1e9, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+  for (var i = 0; i < INTS.length; i++) {
+    var o = INTS[i];
+    if (o.vis && !o.vis()) continue;
+    if (Math.abs(P.y - LV[o.l]) > 1.5) continue;
+    var dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz);
+    if (d > o.r) continue;
+    if (!o.any && d > 0.9 && (dx * fx + dz * fz) / d < 0.3) continue;
+    if (d < bd) { bd = d; best = o; }
   }
+  return best;
 }
-var time = 0;
+var cur = null;
+function doInteract() { if (S.modal || S.over || !S.started) return; var o = curInt(); if (o) o.act(); }
+function updatePrompt() {
+  var o = (S.modal || S.over || !S.started) ? null : curInt();
+  if (o && o.dyn) o.dyn(o);
+  var b = $('act');
+  if (o) { $('act-ic').textContent = o.ic; $('act-lb').textContent = o.lb; b.style.display = 'flex'; } else b.style.display = 'none';
+  cur = o;
+}
+
+// ================= player =================
+function blocked(x, z, y) {
+  var r = 0.3;
+  for (var i = 0; i < COL.length; i++) {
+    var c = COL[i]; if (Math.abs(y - LV[c.l]) > 2.0) continue;
+    var cx = clamp(x, c.x0, c.x1), cz = clamp(z, c.z0, c.z1);
+    if ((x - cx) * (x - cx) + (z - cz) * (z - cz) < r * r) return true;
+  }
+  for (var j = 0; j < DOORS.length; j++) {
+    var d = DOORS[j]; if (d.open || Math.abs(y - LV[d.l]) > 2.0) continue;
+    var rc = d.rect, cx2 = clamp(x, rc.x0, rc.x1), cz2 = clamp(z, rc.z0, rc.z1);
+    if ((x - cx2) * (x - cx2) + (z - cz2) * (z - cz2) < r * r) return true;
+  }
+  return false;
+}
+function snapY(y) { var b = 0, bd = 1e9; for (var i = 0; i < 3; i++) { var d = Math.abs(y - LV[i]); if (d < bd) { bd = d; b = LV[i]; } } return b; }
+function movePlayer(mx, mz, sp, dt) {
+  var nx = P.x + mx * sp * dt; if (!blocked(nx, P.z, P.y)) P.x = nx;
+  var nz = P.z + mz * sp * dt; if (!blocked(P.x, nz, P.y)) P.z = nz;
+  var ry = rampY(P.x, P.z);
+  if (ry !== null && Math.abs(ry - P.y) < 0.9) P.y = ry; else if (ry === null) P.y = snapY(P.y);
+}
+var time = 0, bobAmp = 0;
 function update(dt) {
   time += dt;
-  if (S.started && !S.over && !S.won) {
-    if (!S.hidden && !S.modalOpen && !S.puzzleOpen) {
-      var ix = 0, iz = 0;
-      if (keys.KeyW || keys.ArrowUp) iz -= 1; if (keys.KeyS || keys.ArrowDown) iz += 1;
-      if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
-      ix += joy.dx; iz += joy.dy;
-      var l = Math.hypot(ix, iz); if (l > 1) { ix /= l; iz /= l; }
-      var moving = l > 0.12;
-      var wantRun = (keys.ShiftLeft || keys.ShiftRight || P.runBtn) && moving;
-      P.run = wantRun && P.stam > 0.05;
-      P.stam = clamp(P.stam + (P.run ? -0.22 : 0.14) * dt, 0, 1);
-      var sp = P.run ? 5.0 : 3.0;
-      if (moving) {
-        var s = Math.sin(P.yaw), c = Math.cos(P.yaw);
-        var wx = ix * c + iz * s, wz = -ix * s + iz * c; // iz<0 = forward
-        P.x += wx * sp * dt; P.z += wz * sp * dt; P.bob += dt * (P.run ? 11 : 7);
-      }
-      if (keys.KeyQ) P.yaw += dt * 1.8; if (keys.KeyZ) P.yaw -= dt * 1.8;
-      collidePlayer(0.32);
-    } else P.run = false;
-    updateKeeper(dt);
+  if (S.started && !S.modal && !S.over && !S.hidden) {
+    var fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw);
+    var f = 0, s = 0;
+    if (keys.KeyW || keys.ArrowUp) f += 1; if (keys.KeyS || keys.ArrowDown) f -= 1; if (keys.KeyD || keys.ArrowRight) s += 1; if (keys.KeyA || keys.ArrowLeft) s -= 1;
+    f += -joy.dy; s += joy.dx;
+    var m = Math.hypot(f, s); if (m > 1) { f /= m; s /= m; m = 1; }
+    var run = (P.run || keys.ShiftLeft || keys.ShiftRight) && m > 0.1 && P.stam > 0.02;
+    if (run) P.stam = Math.max(0, P.stam - dt * 0.2); else P.stam = Math.min(1, P.stam + dt * 0.12);
+    var sp = run ? 4.0 : 2.4;
+    if (m > 0.02) { movePlayer(fx * f + rx * s, fz * f + rz * s, sp, dt); bobAmp += dt * (run ? 11 : 7.5); }
+    $('stam').firstChild.style.width = (P.stam * 100) + '%';
   }
-  // doors anim
-  DOORS.forEach(function (d) { d.hinge.rotation.y += (d.target - d.hinge.rotation.y) * Math.min(1, dt * 4); });
-  // flicker + flashlight
-  var near = S.awake ? clamp(1 - Math.hypot(P.x - K.x, P.z - K.z) / 9, 0, 1) : 0;
-  flash.intensity = S.flash ? 2.4 * (1 - (Math.random() < near * 0.25 ? 0.8 : 0)) : 0;
-  lampLiving.intensity = 0.9 * (1 - (Math.random() < near * 0.2 ? 0.8 : 0));
-  if (S.awake && near > 0.5) ambient.intensity = (DBG.bright ? 2.6 : 0.55) * (0.6 + Math.random() * 0.4);
+  updateKeeper(dt);
   // camera
+  var bob = S.hidden ? 0 : Math.sin(bobAmp) * 0.035;
+  var ey = P.y + 1.55 + bob;
   if (!DBG.top) {
-    var bobY = Math.sin(P.bob) * 0.04;
-    camera.position.set(P.x, (S.hidden ? 1.4 : 1.6) + bobY, P.z);
-    camera.rotation.y = P.yaw; camera.rotation.x = P.pitch;
+    camera.position.set(P.x, ey, P.z); camera.rotation.set(P.pitch, P.yaw, 0);
+    plight.position.set(P.x, ey - 0.1, P.z);
+    var fdx = -Math.sin(P.yaw) * Math.cos(P.pitch), fdz = -Math.cos(P.yaw) * Math.cos(P.pitch), fdy = Math.sin(P.pitch);
+    flash.position.set(P.x, ey, P.z); flash.target.position.set(P.x + fdx * 6, ey + fdy * 6, P.z + fdz * 6);
+    flash.visible = flashOn && !S.hidden;
   }
-  // prompt
-  var it = (S.started && !S.over && !S.won && !S.modalOpen && !S.puzzleOpen) ? (S.hidden ? { cur: 'اخرج من الخزانة' } : nearest()) : null;
-  var pr = $('prompt');
-  if (it) { pr.textContent = (isTouch ? '' : 'E — ') + it.cur; pr.style.opacity = 1; } else pr.style.opacity = 0;
-  $('stam').firstChild.style.width = (P.stam * 100) + '%';
-  $('stam').style.opacity = P.stam < 0.98 ? 1 : 0;
+  // visibility
+  for (var l = 0; l < 3; l++) LG[l].visible = DBG.top ? (l === +DBG.top - 0) : Math.abs(P.y - LV[l]) < STEP + 0.3;
+  if (DBG.top) ROOF.visible = false;
+  // doors
+  for (var i = 0; i < DOORS.length; i++) {
+    var d = DOORS[i], tg = d.open ? d.w * 0.92 : 0; d.off += (tg - d.off) * Math.min(1, dt * 5); d.mesh.position.x = d.cx + d.off;
+  }
+  for (var k = 0; k < MARKERS.length; k++) { var mm = MARKERS[k]; if (!mm.visible) continue; mm.rotation.y = time * 2; mm.position.y = mm.userData.by + Math.sin(time * 2.5 + k) * 0.03; }
+  // keeper model
+  if (S.awake) {
+    K.group.position.set(K.x, K.y, K.z); K.group.rotation.y = K.ry;
+    K.group.visible = Math.abs(K.y - P.y) < 4.2;
+  }
+  updatePrompt(); lvlLabel();
 }
+
 var last = performance.now();
 function loop() {
-  requestAnimationFrame(loop);
-  var n = performance.now(), dt = Math.min((n - last) / 1000, 0.05); last = n;
+  var n = performance.now(), dt = Math.min(0.05, (n - last) / 1000); last = n;
   update(dt); renderer.render(scene, camera);
-  if (DBG.top) placeLabels();
+  requestAnimationFrame(loop);
 }
 
-// ================= debug / top view / autotest =================
+// ================= setup / debug =================
+K.group.visible = false; scene.add(K.group);
+function applyDebug() {
+  if (DBG.at) { var a = DBG.at.split(','); P.x = +a[0]; P.z = +a[1]; if (a[2] !== undefined) P.y = LV[+a[2]]; }
+  if (DBG.yaw) P.yaw = +DBG.yaw; if (DBG.pitch) P.pitch = +DBG.pitch;
+  if (DBG.give) DBG.give.split(',').forEach(function (k) { if (k === 'power') { S.power = true; } else if (k === 'ritual') { S.unl.ritual = true; D.ritual.open = true; } else S.inv[k] = true; });
+  if (DBG.power) { S.power = true; }
+  if (DBG.give || DBG.power) refreshHUD();
+}
 function placeLabels() {
-  var rooms = [['غرفة النوم', 4, 3.5], ['غرفة الأطفال', 12, 3.5], ['المكتب', 20, 3.5], ['الممر', 12, 9],
-    ['غرفة المعيشة', 4, 14.5], ['القاعة (الباب الأمامي)', 12, 14.5], ['المطبخ', 20, 14.5]];
-  var html = '';
-  rooms.forEach(function (r) {
-    var v = new THREE.Vector3(r[1], 0, r[2]).project(camera);
-    html += '<div style="left:' + ((v.x + 1) / 2 * innerWidth) + 'px;top:' + ((1 - v.y) / 2 * innerHeight) + 'px">' + r[0] + '</div>';
-  });
-  $('roomlabels').innerHTML = html;
+  var box = $('roomlabels'); box.innerHTML = '';
+  var l = +DBG.top, nm = NAMES[l];
+  for (var i = 0; i < 7; i++) {
+    var r = ROOMS[i], v = new THREE.Vector3((r[0] + r[2]) / 2, LV[l], (r[1] + r[3]) / 2).project(camera);
+    var d = document.createElement('div'); d.textContent = nm[i]; d.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; box.appendChild(d);
+  }
 }
 if (DBG.top) {
-  ceilings.forEach(function (c) { c.visible = false; });
-  camera.position.set(12, 27, 10.6); camera.rotation.set(-Math.PI / 2, 0, 0); camera.fov = 52; camera.updateProjectionMatrix();
-  flash.intensity = 0; S.flash = false;
-  $('hintkeys').style.display = 'none'; $('obj').style.display = 'none'; $('vignette').style.display = 'none';
+  var tl = +DBG.top; camera.fov = 56; camera.updateProjectionMatrix();
+  camera.position.set(8, LV[tl] + 15, 6.05); camera.rotation.set(-Math.PI / 2, 0, 0);
+  // north (z=0) up on screen
+  S.started = true; $('overlay').style.display = 'none'; $('obj').style.display = 'none'; $('stam').style.display = 'none'; $('vignette').style.display = 'none'; $('lvl').style.display = 'none';
+  camera.updateMatrixWorld(); placeLabels(); addEventListener('resize', function () { camera.updateMatrixWorld(); placeLabels(); });
 }
-if (DBG.all) { S.key = true; S.kitchenOpen = true; dKitchen.locked = false; openDoor(dKitchen); }
-if (DBG.power) { S.key = true; S.kitchenOpen = true; openDoor(dKitchen); S.power = true; S.nurseryOpen = true; openDoor(dNursery); lampCorr.intensity = 0.9; lampNursery.intensity = 0.7; fuseLamp.material.color.set(0x33ff66); fuseMesh.visible = false; }
-if (DBG.cam) { var c = DBG.cam.split(',').map(Number); P.x = c[0]; P.z = c[1]; P.yaw = (c[2] || 0) * Math.PI / 180; P.pitch = (c[3] || 0) * Math.PI / 180; }
-if (DBG.keeper) { var kk = DBG.keeper.split(',').map(Number); S.awake = true; K.group.visible = true; K.x = kk[0]; K.z = kk[1]; K.ry = (kk[2] || 0) * Math.PI / 180; K.group.position.set(K.x, 0, K.z); K.group.rotation.y = K.ry; K.state = 'patrol'; }
-if (DBG.skip) { $('overlay').style.display = 'none'; S.started = true; refreshHUD(); }
-refreshHUD();
-
-window.__game = { S: S, P: P, K: K, update: update, interact: tryInteract, nearest: nearest, press: pressKey, openPuzzle: openPuzzle, INTS: INTS, wake: wakeKeeper, collide: collidePlayer, los: clearLOS };
-
-function autotest() {
-  var R = [], ok = true;
-  function t(name, cond) { R.push((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) ok = false; }
-  function at(x, z, yaw) { P.x = x; P.z = z; P.yaw = yaw; }
-  function use(id) { var it = INTS.filter(function (i) { return i.id === id; })[0]; at(it.x, it.z, 0); P.yaw = Math.atan2(-(0), 0); it.act(); }
-  S.started = true; S.flash = true;
-  // collision
-  at(4, 10.95, 0); P.x = 6; P.z = 10.95; collidePlayer(0.32);
-  t('wall collision pushes player out of z=11 wall', P.z < 10.9 - 0.3 + 0.05 || P.z > 11.1 + 0.3 - 0.05);
-  at(20, 10.5, 0); P.z = 11.3; collidePlayer(0.32);
-  t('closed kitchen door blocks passage', !(P.z > 11.35 && P.z < 11.45) || true);
-  // puzzle chain
-  t('start objective is chest', !S.key && !S.kitchenOpen);
-  use('kitchenDoor'); t('kitchen door stays locked without key', !S.kitchenOpen);
-  use('chest'); t('got kitchen key', S.key);
-  use('kitchenDoor'); t('kitchen door opens with key', S.kitchenOpen && !dKitchen.closed);
-  use('fusebox'); t('fuse box refuses without fuse', !S.power);
-  use('fuse'); t('fuse taken and keeper awakened', S.fuse && S.awake && K.state === 'patrol');
-  use('fusebox'); t('power on, nursery door opens', S.power && S.nurseryOpen && !dNursery.closed);
-  use('noteA'); use('noteB'); use('noteC');
-  t('3 notes collected', S.notes.A && S.notes.B && S.notes.C);
-  // music box wrong then right
-  window.__game.openPuzzle(); pressKey(1); t('wrong first note resets', entered.length === 0);
-  pressKey(0); pressKey(1); pressKey(2); t('partial sequence not solved', !S.solved);
-  pressKey(3); t('correct sequence R,B,G,Y solves puzzle', S.solved && S.front);
-  // keeper ai
-  S.puzzleOpen = false; S.hidden = false; S.over = false;
-  at(8, 9, -Math.PI / 2); K.x = 14; K.z = 9; K.state = 'patrol'; K.pause = 0; K.node = null;
-  for (var i = 0; i < 40; i++) update(0.05);
-  t('keeper sees player with flashlight and chases', K.state === 'chase');
-  for (i = 0; i < 200 && !S.over; i++) update(0.05);
-  t('keeper eventually catches a stationary player', S.over === true);
-  // hiding
-  S.over = false; document.getElementById('end').style.display = 'none';
-  at(8, 9, 0); K.x = 14; K.z = 9; K.state = 'patrol'; K.node = null; K.pause = 0;
-  S.hidden = true; for (i = 0; i < 60; i++) update(0.05);
-  t('keeper does not catch hidden player at range', !S.over && K.state !== 'chase');
-  S.hidden = false;
-  // LOS
-  t('LOS blocked by wall (living to kitchen)', !clearLOS(4, 14, 20, 14));
-  t('LOS clear along corridor', clearLOS(2, 9, 22, 9));
-  // front door win
-  S.hidden = false; S.over = false; S.front = true; use('front'); t('front door with key wins', S.won);
-  var pre = document.createElement('pre'); pre.id = 'testout'; pre.textContent = (ok ? 'ALL_OK\n' : 'HAS_FAIL\n') + R.join('\n');
-  document.body.appendChild(pre);
-}
-if (DBG.test) { try { autotest(); } catch (e) { var p = document.createElement('pre'); p.id = 'testout'; p.textContent = 'ERR ' + e.message + '\n' + e.stack; document.body.appendChild(p); } }
+applyDebug();
+if (DBG.skip && !DBG.top) { begin(); }
+refreshHUD(); lvlLabel();
+if (DBG.power && !DBG.top) wakeKeeper();
+if (Q.get('open')) setTimeout(function () { var o = Q.get('open'); if (o === 'code') openCode('الخزنة', 3, '371', function () {}); if (o === 'music') openMusic(); if (o === 'notes') { S.notes.A = true; addLog('nA', 'ورقة ١: اللحن يبدأ بلون الدم، ثم بلون السماء.'); codeLog(); openNotes(); } }, 200);
 loop();
+
+// ================= automated logic test =================
+function autotest() {
+  var out = [], ok = true;
+  function chk(n, c) { out.push((c ? 'ok  ' : 'FAIL ') + n); if (!c) ok = false; }
+  function act(id) { for (var i = 0; i < INTS.length; i++) if (INTS[i].id === id) { INTS[i].act(); return INTS[i]; } throw new Error('no int ' + id); }
+  function intOf(id) { for (var i = 0; i < INTS.length; i++) if (INTS[i].id === id) return INTS[i]; }
+  function stand(o) { P.x = o.x; P.z = o.z; P.y = LV[o.l]; }
+  // walking test
+  function walk(pts) {
+    for (var i = 0; i < pts.length; i++) {
+      var tg = pts[i], guard = 0;
+      while (Math.hypot(tg[0] - P.x, tg[1] - P.z) > 0.12 && guard++ < 900) {
+        var dx = tg[0] - P.x, dz = tg[1] - P.z, m = Math.hypot(dx, dz);
+        var px = P.x, pz = P.z; movePlayer(dx / m, dz / m, 2.4, 0.05);
+        if (Math.hypot(P.x - px, P.z - pz) < 0.001) break;
+      }
+      if (Math.hypot(tg[0] - P.x, tg[1] - P.z) > 0.2) return 'stuck going to ' + tg.join(',') + ' at ' + P.x.toFixed(2) + ',' + P.z.toFixed(2) + ' y=' + P.y.toFixed(2);
+    }
+    return null;
+  }
+  function push(dx, dz) { for (var i = 0; i < 40; i++) movePlayer(dx, dz, 2.4, 0.05); }
+  DOORS.forEach(function (d) { d.open = true; });
+  P.x = 2.8; P.z = 3.2; P.y = 0 + LV[2];
+  var r1 = walk([[3, 4.6], [3, 5.8], [8.2, 6], [7.2, 7.2], [7.2, 11.2]]);
+  chk('upper bedroom -> corridor -> down stairs ' + (r1 || ''), !r1);
+  chk('y ~ 0 after descending (y=' + P.y.toFixed(2) + ')', Math.abs(P.y) < 0.2);
+  var r2 = walk([[7.2, 11.4], [9.2, 11.4], [9.2, 7.6], [8.2, 6.2]]);
+  chk('ground lane back to corridor ' + (r2 || ''), !r2);
+  var r3 = walk([[13, 6.2], [13, 7.4], [15, 7.4], [15, 7.9], [15, 10.6], [15, 11.4]]);
+  chk('dining -> basement stairs ' + (r3 || ''), !r3);
+  chk('y ~ -2.9 in basement (y=' + P.y.toFixed(2) + ')', Math.abs(P.y + STEP) < 0.25);
+  var r4 = walk([[14, 11.5], [13, 11.5], [13, 8], [13, 6.4], [13.5, 4.6], [13.5, 2.6]]);
+  chk('basement workshop -> corridor -> ritual room ' + (r4 || ''), !r4);
+  var r5 = walk([[13.3, 6], [3, 6], [3, 4.6], [4.3, 1.2]]);
+  chk('basement to boiler room fuse box ' + (r5 || ''), !r5);
+  var r6 = walk([[3, 4.6], [3, 6], [13, 6.2], [13, 8], [13, 11.5], [14, 11.5], [15, 11.4]]);
+  chk('back to ramp bottom ' + (r6 || ''), !r6);
+  var r7 = walk([[15, 10.5], [15, 8], [15, 7.4]]);
+  chk('climb down-stairs up to ground ' + (r7 || '') + ' y=' + P.y.toFixed(2), !r7 && Math.abs(P.y) < 0.25);
+  var r8 = walk([[13, 6.4], [8.2, 6.2], [9.2, 7.5], [9.2, 11.4], [7.2, 11.4], [7.2, 8]]);
+  chk('climb up stairs ' + (r8 || '') + ' y=' + P.y.toFixed(2), !r8 && P.y > 1.4);
+  var r9 = walk([[7.2, 7.4], [8.2, 6.2], [3, 6]]);
+  chk('arrive upper floor ' + (r9 || '') + ' y=' + P.y.toFixed(2), !r9 && Math.abs(P.y - STEP) < 0.2);
+  // cannot fall into hole sideways
+  P.x = 9.0; P.z = 9; P.y = LV[2]; push(-1, 0); chk('upper hole blocked from east', P.x > 8.4);
+  P.x = 9.0; P.z = 9; P.y = 0; push(-1, 0); chk('ground up-ramp blocked from east lane', P.x > 8.4);
+  P.x = 13; P.z = 9; P.y = 0; push(1, 0); chk('ground pit blocked from west', P.x < 14.0);
+  P.x = 13; P.z = 9; P.y = -STEP; push(1, 0); chk('basement ramp blocked from west', P.x < 14.0);
+  // closed doors block
+  DOORS.forEach(function (d) { d.open = false; });
+  P.x = 8.5; P.z = 4.0; P.y = LV[2]; push(0, 1); chk('closed nursery door blocks', P.z < 4.9);
+  // puzzle chain
+  S.inv = {}; S.unl = {}; S.power = false; S.awake = false;
+  stand(intOf('key_nursery')); act('key_nursery'); chk('nursery key', S.inv.nursery);
+  var dn = intOf('door_nursery'); dn.dyn(dn); chk('nursery door shows key button', dn.lb === 'فتح بالمفتاح'); act('door_nursery'); chk('nursery door open', D.nursery.open && S.unl.nursery);
+  var dk = intOf('door_kitchen'); dk.dyn(dk); chk('kitchen door locked without key', dk.lb === 'مقفل'); act('door_kitchen'); chk('kitchen still closed', !D.kitchen.open);
+  closeCard(); solveMusic(); chk('music box gives kitchen key', S.inv.kitchen);
+  act('door_kitchen'); chk('kitchen open', D.kitchen.open);
+  act('fuse'); chk('fuse', S.inv.fuse);
+  act('fireplace'); closeCard(); act('fridge'); closeCard(); act('clock'); closeCard();
+  chk('digits 3,7,1', S.dig.join('') === '371');
+  var door_d = intOf('door_dining'); act('door_dining'); chk('dining locked without basement key', !D.dining.open);
+  S.inv.basement = true; act('door_dining'); chk('dining opens with basement key', D.dining.open && S.unl.basement);
+  var rr = intOf('door_ritual'); act('door_ritual'); closeCard(); chk('ritual door needs power', !D.ritual.open);
+  act('fusebox'); chk('power on and keeper awake', S.power && S.awake);
+  closeCard(); S.unl.ritual = true; D.ritual.open = true;
+  var kf = intOf('key_front'); chk('final key available after ritual', kf.vis()); act('key_front'); chk('front key', S.inv.front);
+  var win0 = S.over; act('door_front'); chk('front door ends game', S.over && !win0);
+  // keeper reachability
+  S.unl = { nursery: 1, kitchen: 1, basement: 1, ritual: 1 };
+  var reach = bfs(NID['L2_n1'], NID['L0_n2']); chk('keeper path upper nursery -> basement ritual (' + (reach ? reach.length : 'none') + ' nodes)', !!reach);
+  var reach2 = bfs(NID['L0_s2'], NID['L2_s0']); chk('keeper path workshop -> master room', !!reach2);
+  document.title = ok ? 'ALL_OK' : 'FAILED';
+  var pre = document.createElement('pre'); pre.id = 'testout'; pre.style.cssText = 'position:fixed;inset:0;z-index:999;background:#000;color:#0f0;font-size:12px;overflow:auto;direction:ltr;margin:0;padding:8px';
+  pre.textContent = (ok ? 'ALL_OK' : 'FAILED') + '\n' + out.join('\n'); document.body.appendChild(pre);
+}
+if (DBG.test) setTimeout(function () { try { autotest(); } catch (e) { document.title = 'ERR ' + e.message; var p = document.createElement('pre'); p.style.cssText = 'position:fixed;inset:0;z-index:999;background:#000;color:#f55'; p.textContent = 'ERR ' + e.stack; document.body.appendChild(p); } }, 300);
+window.G = { S: S, P: P, K: K, D: D, INTS: INTS, wakeKeeper: wakeKeeper };
 })();
 </script>
 </body>
