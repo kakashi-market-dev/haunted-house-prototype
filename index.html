@@ -113,7 +113,7 @@ var STEP = 2.9, WH = 2.7, DH = 2.15, T = 0.16, W = 18, DP = 14;
 var LV = [-STEP, 0, STEP];
 var scene = new THREE.Scene();
 scene.background = new THREE.Color(0x020203);
-scene.fog = new THREE.FogExp2(0x030304, DBG.top ? 0.002 : 0.05);
+scene.fog = new THREE.FogExp2(0x030304, DBG.top ? 0.002 : 0.075);
 var camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.05, 80);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
@@ -375,9 +375,10 @@ function addDoor(def) {
     var ins2 = ins.clone(); ins2.position.z = -0.045; g.add(ins2);
   }
   var hdl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), mGold); hdl.position.set(d.w / 2 - 0.18, -0.05, 0.07); g.add(hdl); var h2 = hdl.clone(); h2.position.z = -0.07; g.add(h2);
-  g.position.set(d.cx, LV[d.l] + DH / 2, d.cz);
-  if (d.ax === 'v') g.rotation.y = PI / 2;
-  LG[d.l].add(g); d.mesh = g;
+  var pv = new THREE.Group(); pv.add(g); g.position.x = d.w / 2;
+  if (d.ax === 'h') pv.position.set(d.cx - d.w / 2, LV[d.l] + DH / 2, d.cz); else { pv.rotation.y = PI / 2; pv.position.set(d.cx, LV[d.l] + DH / 2, d.cz + d.w / 2); }
+  d.base = d.ax === 'h' ? 0 : PI / 2; d.ang = 0; d.tgt = 0; d.side = 1;
+  LG[d.l].add(pv); d.mesh = pv; d.hinge = g;
   var fw = 0.1;
   if (d.ax === 'h') { mk(d.l, d.cx - d.w / 2 - fw, 0, d.cz - 0.11, d.cx - d.w / 2, DH + 0.06, d.cz + 0.11, mDark, 1); mk(d.l, d.cx + d.w / 2, 0, d.cz - 0.11, d.cx + d.w / 2 + fw, DH + 0.06, d.cz + 0.11, mDark, 1); mk(d.l, d.cx - d.w / 2 - fw, DH, d.cz - 0.11, d.cx + d.w / 2 + fw, DH + 0.08, d.cz + 0.11, mDark, 1); }
   else { mk(d.l, d.cx - 0.11, 0, d.cz - d.w / 2 - fw, d.cx + 0.11, DH + 0.06, d.cz - d.w / 2, mDark, 1); mk(d.l, d.cx - 0.11, 0, d.cz + d.w / 2, d.cx + 0.11, DH + 0.06, d.cz + d.w / 2 + fw, mDark, 1); mk(d.l, d.cx - 0.11, DH, d.cz - d.w / 2 - fw, d.cx + 0.11, DH + 0.08, d.cz + d.w / 2 + fw, mDark, 1); }
@@ -617,7 +618,7 @@ DOORS.forEach(function (d) {
     vis: function () { return !d.open; },
     ic: '🚪', lb: 'فتح',
     dyn: function (o) {
-      if (!d.lock) { o.ic = '🚪'; o.lb = 'فتح'; return; }
+      if (!d.lock || NOKEY) { o.ic = '🚪'; o.lb = 'فتح'; return; }
       var has = hasKey(d);
       o.ic = has ? '🔑' : '🔒'; o.lb = has ? 'فتح بالمفتاح' : 'مقفل';
       if (d.lock === 'ritual') { o.ic = S.power ? '🔢' : '🔒'; o.lb = S.power ? 'إدخال الرمز' : 'مقفل'; }
@@ -625,22 +626,28 @@ DOORS.forEach(function (d) {
     },
     act: function () { useDoor(d); } });
 });
+var NOKEY = true;
 function hasKey(d) {
-  if (!d.lock) return true;
+  if (!d.lock || (NOKEY && d.lock !== 'front')) return true;
   if (d.lock === 'ritual') return !!S.power;
   return !!S.inv[d.lock] || !!S.unl[d.lock];
 }
-function openDoor(d) { d.open = true; tone(180, .15, .3, 'triangle'); }
+function openDoor(d) {
+  if (d.ax === 'h') d.side = P.z < d.cz ? -1 : 1; else d.side = P.x < d.cx ? 1 : -1;
+  d.side = d.ax === 'h' ? (P.z < d.cz ? -1 : 1) : (P.x < d.cx ? -1 : 1);
+  d.open = true; if (typeof creak === 'function') creak(1.1 + Math.random() * 0.5);
+}
 function useDoor(d) {
   if (d.open) return;
   if (!d.lock) { openDoor(d); return; }
+  if (NOKEY && d.lock !== 'front') { S.unl[d.lock] = true; openDoor(d); return; }
   if (d.lock === 'ritual') {
     if (!S.power) { toast('الباب الكهربائي لا يعمل. لا توجد كهرباء في القبو.'); return; }
     openCode('الباب الكهربائي', 4, '1964', function () { S.unl.ritual = true; openDoor(d); toast('انفتح الباب الكهربائي.'); addLog('rit', 'الغرفة الأخيرة مفتوحة: خذ المفتاح من المذبح.'); });
     return;
   }
   if (d.lock === 'front') {
-    if (!S.inv.front) { toast('الباب الأمامي مقفل. تحتاج مفتاحه.'); return; }
+    if (!S.inv.front) { if (NOKEY) { openDoor(d); toast('الباب الأمامي مفتوح (وضع التجربة).'); return; } toast('الباب الأمامي مقفل. تحتاج مفتاحه.'); return; }
     openDoor(d); win(); return;
   }
   if (S.inv[d.lock] || S.unl[d.lock]) { S.unl[d.lock] = true; openDoor(d); toast('فتحتَ ' + d.name + ' بالمفتاح.'); return; }
@@ -812,6 +819,132 @@ function showEnd(t, b, btn) { $('e-title').textContent = t; $('e-body').textCont
 $('e-btn').onclick = function () { location.href = location.pathname + '?skip=1'; };
 
 // ================= audio =================
+// ================= v0.4 horror dressing: blood, props, writing =================
+var SWAY = [];
+function ctx2(w, h, fn) { var c = document.createElement('canvas'); c.width = w; c.height = h; var g = c.getContext('2d'); fn(g, w, h); var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
+function rb(a, b) { return a + Math.random() * (b - a); }
+function drip(g, x, y, len, wd) {
+  g.fillStyle = 'rgba(70,4,6,0.92)'; g.beginPath(); g.moveTo(x - wd, y); g.lineTo(x + wd, y); g.lineTo(x + wd * 0.5, y + len); g.arc(x, y + len, wd * 0.6, 0, Math.PI); g.lineTo(x - wd * 0.5, y + len); g.fill();
+}
+var bloodWallTex = [0, 1, 2].map(function (k) {
+  return ctx2(256, 256, function (g, w, h) {
+    g.clearRect(0, 0, w, h);
+    if (k === 0) { // smear with drips
+      for (var i = 0; i < 14; i++) { g.fillStyle = 'rgba(' + (60 + Math.floor(rb(0, 40))) + ',3,5,' + rb(0.5, 0.9) + ')'; g.beginPath(); g.ellipse(rb(50, 200), rb(30, 90), rb(20, 60), rb(8, 24), rb(-0.5, 0.5), 0, 7); g.fill(); }
+      for (var j = 0; j < 16; j++) drip(g, rb(30, 226), rb(40, 90), rb(40, 160), rb(1.5, 5));
+    } else if (k === 1) { // handprints trail
+      for (var n = 0; n < 5; n++) { var x = 40 + n * 38, y = 50 + n * 28 + rb(-8, 8); g.save(); g.translate(x, y); g.rotate(rb(-0.5, 0.5)); g.fillStyle = 'rgba(80,5,8,0.9)'; g.beginPath(); g.ellipse(0, 0, 16, 20, 0, 0, 7); g.fill();
+        for (var f = 0; f < 5; f++) { g.beginPath(); g.ellipse(-14 + f * 7, -24 - (f === 0 || f === 4 ? -4 : 3), 3.2, 11, (f - 2) * 0.12, 0, 7); g.fill(); } g.beginPath(); g.ellipse(-18, -2, 4, 9, 0.9, 0, 7); g.fill(); g.restore();
+        drip(g, x + rb(-8, 8), y + 12, rb(20, 70), 2); }
+    } else { // long vertical streaks (dragged)
+      for (var s = 0; s < 6; s++) { var sx = rb(40, 216); g.fillStyle = 'rgba(' + (55 + Math.floor(rb(0, 30))) + ',3,5,' + rb(0.6, 0.95) + ')'; g.fillRect(sx, rb(0, 40), rb(6, 18), rb(120, 230)); g.beginPath(); g.arc(sx + 5, rb(150, 250), rb(5, 12), 0, 7); g.fill(); }
+    }
+    // soften / darken edges with noise
+    var id = g.getImageData(0, 0, w, h), d = id.data; for (var p = 3; p < d.length; p += 4) { d[p] = Math.floor(d[p] * (0.75 + Math.random() * 0.25)); } g.putImageData(id, 0, 0);
+  });
+});
+var bloodFloorTex = [0, 1, 2].map(function (k) {
+  return ctx2(256, 256, function (g, w, h) {
+    g.clearRect(0, 0, w, h);
+    if (k === 0) { // pool
+      for (var i = 0; i < 9; i++) { g.fillStyle = 'rgba(' + (50 + Math.floor(rb(0, 25))) + ',2,4,' + rb(0.55, 0.9) + ')'; g.beginPath(); g.ellipse(128 + rb(-30, 30), 128 + rb(-30, 30), rb(35, 85), rb(30, 75), rb(0, 3), 0, 7); g.fill(); }
+      for (var s = 0; s < 18; s++) { g.fillStyle = 'rgba(60,3,5,0.85)'; g.beginPath(); g.arc(rb(20, 236), rb(20, 236), rb(1.5, 6), 0, 7); g.fill(); }
+    } else if (k === 1) { // drag trail
+      for (var t = 0; t < 26; t++) { g.fillStyle = 'rgba(' + (55 + Math.floor(rb(0, 25))) + ',3,5,' + rb(0.5, 0.9) + ')'; var yy = t * 10; g.beginPath(); g.ellipse(128 + Math.sin(t * 0.5) * 25 + rb(-6, 6), yy, rb(10, 28), rb(8, 16), 0, 0, 7); g.fill(); }
+      for (var q = 0; q < 14; q++) { g.fillStyle = 'rgba(60,3,5,0.8)'; g.beginPath(); g.arc(rb(60, 200), rb(10, 250), rb(1.5, 5), 0, 7); g.fill(); }
+    } else { // footprints
+      for (var n = 0; n < 8; n++) { var fx = 128 + (n % 2 ? 22 : -22), fy = 20 + n * 30; g.fillStyle = 'rgba(70,4,6,' + (0.9 - n * 0.08) + ')'; g.beginPath(); g.ellipse(fx, fy, 11, 20, 0.1, 0, 7); g.fill(); g.beginPath(); g.ellipse(fx, fy - 26, 9, 8, 0, 0, 7); g.fill(); }
+    }
+  });
+});
+var writeTex = function (txt) {
+  return ctx2(512, 160, function (g, w, h) {
+    g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(95,6,8,0.95)'; g.font = 'bold 84px Tahoma, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl';
+    g.shadowColor = 'rgba(60,0,0,0.9)'; g.shadowBlur = 6; g.fillText(txt, w / 2, h / 2 - 8);
+    for (var i = 0; i < 12; i++) drip(g, rb(70, 440), h / 2 + 14, rb(12, 60), rb(1.2, 3));
+  });
+};
+var bwMats = bloodWallTex.map(function (t) { return new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false, color: 0xcccccc, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); });
+var bfMats = bloodFloorTex.map(function (t) { return new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false, color: 0xcccccc, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); });
+var planeG = new THREE.PlaneGeometry(1, 1);
+function wallDecal(l, r, wall, t, y, s, mat) {
+  var m = new THREE.Mesh(planeG, mat); m.scale.set(s, s, 1); var o = 0.095, x, z, ry;
+  if (wall === 0) { z = r.z0 + o; x = r.x0 + 0.8 + t * (r.x1 - r.x0 - 1.6); ry = 0; }
+  else if (wall === 1) { z = r.z1 - o; x = r.x0 + 0.8 + t * (r.x1 - r.x0 - 1.6); ry = PI; }
+  else if (wall === 2) { x = r.x0 + o; z = r.z0 + 0.8 + t * (r.z1 - r.z0 - 1.6); ry = PI / 2; }
+  else { x = r.x1 - o; z = r.z0 + 0.8 + t * (r.z1 - r.z0 - 1.6); ry = -PI / 2; }
+  m.position.set(x, LV[l] + y, z); m.rotation.y = ry; LG[l].add(m); return m;
+}
+function floorDecal(l, x, z, s, mat, rot, sx) { var m = new THREE.Mesh(planeG, mat); m.rotation.x = -PI / 2; m.rotation.z = rot || 0; m.scale.set(s * (sx || 1), s, 1); m.position.set(x, LV[l] + 0.018, z); LG[l].add(m); return m; }
+var mBlood = new THREE.MeshStandardMaterial({ color: 0x3a0306, roughness: 0.25, metalness: 0.1 });
+var mSkin = new THREE.MeshStandardMaterial({ color: 0x8e7e70, roughness: 0.8 });
+var mCloth = new THREE.MeshStandardMaterial({ color: 0x2a2420, roughness: 1 });
+var mRope = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 1 });
+var mPorc = new THREE.MeshStandardMaterial({ color: 0xcfc6b4, roughness: 0.35 });
+
+function body(l, x, z, rot) { // low-poly corpse on the floor
+  var g = new THREE.Group(); g.position.set(x, LV[l], z); g.rotation.y = rot;
+  function part(geo, mat, px, py, pz, rx, rz) { var m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); if (rx) m.rotation.x = rx; if (rz) m.rotation.z = rz; g.add(m); return m; }
+  part(new THREE.BoxGeometry(0.42, 0.18, 0.62), mCloth, 0, 0.1, 0);
+  part(new THREE.SphereGeometry(0.12, 10, 8), mSkin, 0, 0.12, -0.46);
+  part(new THREE.CylinderGeometry(0.06, 0.05, 0.62, 8), mCloth, -0.13, 0.06, 0.55, PI / 2, 0.15);
+  part(new THREE.CylinderGeometry(0.06, 0.05, 0.62, 8), mCloth, 0.15, 0.06, 0.52, PI / 2, -0.2);
+  part(new THREE.CylinderGeometry(0.045, 0.04, 0.5, 8), mSkin, -0.36, 0.05, -0.15, PI / 2, -0.6);
+  part(new THREE.CylinderGeometry(0.045, 0.04, 0.5, 8), mSkin, 0.4, 0.05, -0.05, PI / 2, 0.9);
+  LG[l].add(g); floorDecal(l, x, z, 1.9, bfMats[0], rot, 1); return g;
+}
+function hanged(l, x, z) { // porcelain doll hanging from ceiling
+  var g = new THREE.Group(); g.position.set(x, LV[l] + WH, z);
+  var rope = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.9, 5), mRope); rope.position.y = -0.45; g.add(rope);
+  var body = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.5, 10), mCloth); body.position.y = -1.15; g.add(body);
+  var head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), mPorc); head.position.y = -0.82; head.scale.set(1, 1.1, 1); g.add(head);
+  [-0.05, 0.05].forEach(function (ex) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), mBlack); e.position.set(ex, -0.80, 0.105); g.add(e); });
+  [-1, 1].forEach(function (s) { var a = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.4, 6), mPorc); a.position.set(s * 0.19, -1.05, 0); a.rotation.z = s * 0.15; g.add(a); var lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.45, 6), mPorc); lg.position.set(s * 0.07, -1.62, 0); g.add(lg); });
+  g.userData.ph = Math.random() * 6; LG[l].add(g); SWAY.push(g); return g;
+}
+function skulls(l, x, z) {
+  var g = new THREE.Group(); g.position.set(x, LV[l], z);
+  for (var i = 0; i < 4; i++) { var s = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 7), mBone); s.position.set(rb(-0.3, 0.3), 0.08 + (i > 2 ? 0.14 : 0), rb(-0.3, 0.3)); s.scale.set(1, 0.9, 1.05); g.add(s); var jw = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.07), mBone); jw.position.set(s.position.x, s.position.y - 0.08, s.position.z + 0.04); g.add(jw); }
+  for (var k = 0; k < 7; k++) { var b = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, rb(0.25, 0.45), 5), mBone); b.position.set(rb(-0.35, 0.35), 0.03, rb(-0.35, 0.35)); b.rotation.set(PI / 2, 0, rb(0, 3)); g.add(b); }
+  LG[l].add(g); return g;
+}
+function chains(l, x, z) {
+  var g = new THREE.Group(); g.position.set(x, LV[l] + WH, z);
+  for (var i = 0; i < 12; i++) { var c = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.01, 5, 8), mMetal); c.position.y = -0.07 * i - 0.05; c.rotation.y = i % 2 ? PI / 2 : 0; g.add(c); }
+  g.userData.ph = Math.random() * 6; LG[l].add(g); SWAY.push(g);
+}
+function candles(l, x, z) {
+  var g = new THREE.Group(); g.position.set(x, LV[l], z);
+  for (var i = 0; i < 6; i++) { var a = i / 6 * PI * 2, c = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, rb(0.08, 0.2), 6), mBone); c.position.set(Math.cos(a) * 0.8, 0.07, Math.sin(a) * 0.8); g.add(c);
+    var f = new THREE.Mesh(new THREE.SphereGeometry(0.018, 5, 5), new THREE.MeshBasicMaterial({ color: 0xffb050 })); f.position.set(c.position.x, c.position.y + 0.1, c.position.z); g.add(f); }
+  LG[l].add(g);
+}
+// ---- apply to every room
+var RNG = 0;
+ROOMS.forEach(function (rs, l) {
+  rs.forEach(function (r, ri) {
+    var n = 2 + (ri % 2);
+    for (var i = 0; i < n; i++) { var wl = Math.floor(rb(0, 4)); wallDecal(l, r, wl, rb(0.05, 0.95), rb(1.0, 1.7), rb(1.1, 1.8), bwMats[Math.floor(rb(0, 3))]); }
+    floorDecal(l, rb(r.x0 + 1, r.x1 - 1), rb(r.z0 + 1, r.z1 - 1), rb(1.4, 2.4), bfMats[Math.floor(rb(0, 3))], rb(0, 6));
+    floorDecal(l, rb(r.x0 + 1, r.x1 - 1), rb(r.z0 + 1, r.z1 - 1), rb(1.2, 2.0), bfMats[1], rb(0, 6));
+    if (Math.random() < 0.6) floorDecal(l, rb(r.x0 + 1, r.x1 - 1), rb(r.z0 + 1, r.z1 - 1), 1.8, bfMats[2], rb(0, 6), 0.5);
+    // props
+    if (r.id !== 'hub' && r.id !== 'landing') {
+      if (ri % 3 === 0) hanged(l, r.x1 - 0.7, r.z0 + 0.7);
+      if (ri % 4 === 1) body(l, (r.x0 + r.x1) / 2 + rb(-1, 1), (r.z0 + r.z1) / 2 + rb(-1, 1), rb(0, 6));
+      if (l === 0 && ri % 2 === 0) skulls(l, r.x0 + 0.8, r.z1 - 0.8);
+    }
+    if (l === 0 && ri % 2 === 1) chains(l, r.x1 - 1.0, r.z1 - 1.0);
+  });
+});
+// writing on the wall
+(function () {
+  var texts = ['اخرج', 'ارحل', 'هي تراك', 'نامي'], k = 0;
+  ROOMS.forEach(function (rs, l) { rs.forEach(function (r, ri) { if (ri % 3 === 2) { var m = wallDecal(l, r, ri % 4, 0.5, 1.5, 1.9, new THREE.MeshLambertMaterial({ map: writeTex(texts[k++ % 4]), transparent: true, depthWrite: false, color: 0xcccccc, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); m.scale.set(1.9, 0.6, 1); } }); });
+})();
+// ritual circle with candles in the basement ritual room
+(function () { var r = ROOMS[0].filter(function (q) { return q.id === 'ritual'; })[0]; if (r) { var cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2; floorDecal(0, cx, cz, 3.2, bfMats[0], 0); candles(0, cx, cz); } })();
+function swayStep(t) { for (var i = 0; i < SWAY.length; i++) { var g = SWAY[i]; g.rotation.z = Math.sin(t * 0.9 + g.userData.ph) * 0.06; g.rotation.x = Math.sin(t * 0.7 + g.userData.ph * 2) * 0.04; } }
 // ================= audio =================
 var AC = null, master = null, boxGain = null, droneGain = null, melodyIdx = 0, audioTimer = null;
 var MEL = [0, 3, 7, 12, 7, 3, 0, 3, 7, 10, 7, 3, -2, 3, 5, 10, 5, 3, 0, 5, 8, 12, 8, 5, 3, 0, 3, -2, 0];
@@ -823,6 +956,7 @@ function initAudio() {
   droneGain = AC.createGain(); droneGain.gain.value = 0.05; droneGain.connect(master);
   var o1 = AC.createOscillator(); o1.type = 'sine'; o1.frequency.value = 48; o1.connect(droneGain); o1.start();
   var o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = 51; o2.connect(droneGain); o2.start();
+  startWind();
   audioTimer = setInterval(audioTick, 430);
 }
 function tone(freq, vol, dur, type, dest) {
@@ -840,6 +974,7 @@ function audioTick() {
   boxGain.gain.setTargetAtTime(vol, AC.currentTime, 0.2);
   var semi = MEL[melodyIdx % MEL.length]; melodyIdx++;
   if (S.awake || Math.random() < 0.3) tone(392 * Math.pow(2, semi / 12) * (1 + (Math.random() - 0.5) * 0.004), 0.22, 1.5, 'triangle', boxGain);
+  horrorTick(d);
   if (K.state === 'chase' && S.awake) { tone(55, 0.35, 0.18, 'sine'); setTimeout(function () { tone(50, 0.25, 0.16, 'sine'); }, 170); }
 }
 function stinger() {
@@ -851,6 +986,59 @@ function stinger() {
   o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime + 0.9);
 }
 var MKNOTES = [523.25, 659.25, 783.99, 987.77];
+
+// ---- v0.4 generated horror sounds (all synthesized, no files)
+var noiseBuf = null;
+function getNoise() { if (noiseBuf) return noiseBuf; var n = AC.sampleRate * 2, b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0), last = 0; for (var i = 0; i < n; i++) { var w = Math.random() * 2 - 1; last = (last + 0.04 * w) / 1.04; d[i] = last * 6; } noiseBuf = b; return b; }
+function pan(p) { var s = AC.createStereoPanner ? AC.createStereoPanner() : null; if (s) { s.pan.value = p; s.connect(master); return s; } return master; }
+function noiseBurst(freq, q, vol, dur, type, p, startAt) {
+  if (!AC) return; var src = AC.createBufferSource(); src.buffer = getNoise(); src.loop = true;
+  var f = AC.createBiquadFilter(); f.type = type || 'bandpass'; f.frequency.value = freq; f.Q.value = q || 1;
+  var g = AC.createGain(), t = AC.currentTime + (startAt || 0); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(0.15, dur * 0.3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(pan(p || 0)); src.start(t); src.stop(t + dur + 0.05); return f;
+}
+function creak(dur) {
+  if (!AC) return; var t = AC.currentTime, o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o2.type = 'square'; var b = 90 + Math.random() * 60;
+  o.frequency.setValueAtTime(b, t); o.frequency.linearRampToValueAtTime(b * 2.4, t + dur * 0.6); o.frequency.linearRampToValueAtTime(b * 1.5, t + dur);
+  o2.frequency.setValueAtTime(b * 1.51, t); o2.frequency.linearRampToValueAtTime(b * 3.4, t + dur * 0.55); o2.frequency.linearRampToValueAtTime(b * 2.2, t + dur);
+  f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 6; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11, t + dur * 0.2); g.gain.linearRampToValueAtTime(0.06, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f); o2.connect(f); f.connect(g); g.connect(master); o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
+  noiseBurst(300, 2, 0.12, 0.25, 'lowpass', 0);
+}
+function thud(p, vol) { tone(58, vol || 0.5, 0.25, 'sine'); noiseBurst(140, 1, (vol || 0.5) * 0.5, 0.2, 'lowpass', p || 0); }
+function startWind() {
+  var src = AC.createBufferSource(); src.buffer = getNoise(); src.loop = true; var f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 0.7;
+  var g = AC.createGain(); g.gain.value = 0.05; var l = AC.createOscillator(), lg = AC.createGain(); l.frequency.value = 0.12; lg.gain.value = 0.035; l.connect(lg); lg.connect(g.gain); l.start();
+  var l2 = AC.createOscillator(), lg2 = AC.createGain(); l2.frequency.value = 0.07; lg2.gain.value = 260; l2.connect(lg2); lg2.connect(f.frequency); l2.start();
+  src.connect(f); f.connect(g); g.connect(master); src.start();
+}
+function whisper() {
+  var p = Math.random() * 2 - 1; for (var i = 0; i < 5; i++) { var fq = 1400 + Math.random() * 1600; noiseBurst(fq, 5, 0.1, 0.18 + Math.random() * 0.2, 'bandpass', p, i * 0.22 + Math.random() * 0.1); }
+}
+function wail() {
+  var t = AC.currentTime, p = pan(Math.random() * 2 - 1), f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 4; var g = AC.createGain(), vib = AC.createOscillator(), vg = AC.createGain();
+  var o = AC.createOscillator(); o.type = 'sawtooth'; var b = 260 + Math.random() * 120; o.frequency.setValueAtTime(b, t); o.frequency.linearRampToValueAtTime(b * 1.6, t + 1.4); o.frequency.linearRampToValueAtTime(b * 0.8, t + 3);
+  vib.frequency.value = 5.5; vg.gain.value = 9; vib.connect(vg); vg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 1); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+  o.connect(f); f.connect(g); g.connect(p); vib.start(t); o.start(t); o.stop(t + 3.1); vib.stop(t + 3.1);
+}
+function knock() { var p = Math.random() * 2 - 1; for (var i = 0; i < 3; i++) { (function (k) { setTimeout(function () { noiseBurst(220, 3, 0.6, 0.12, 'bandpass', p); tone(90, 0.35, 0.1, 'sine'); }, k * 320); })(i); } }
+function steps(n) { var p = Math.random() * 2 - 1; for (var i = 0; i < n; i++) (function (k) { setTimeout(function () { thud(p, 0.22); }, k * 520); })(i); }
+function heartbeat() { thud(0, 0.55); setTimeout(function () { thud(0, 0.4); }, 190); }
+function dripSnd() { var p = Math.random() * 2 - 1; var o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(700, t + 0.08); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3); o.connect(g); g.connect(pan(p)); o.start(t); o.stop(t + 0.35); }
+var hCool = 0, hbT = 0;
+function horrorTick(dk) {
+  if (!S.started || S.over) return;
+  if (dk < 9 && S.awake) { if (performance.now() - hbT > (K.state === 'chase' ? 520 : 900)) { hbT = performance.now(); heartbeat(); } }
+  if (performance.now() < hCool) return;
+  if (Math.random() < 0.22) {
+    hCool = performance.now() + 3500 + Math.random() * 5000;
+    var r = Math.random();
+    if (r < 0.2) whisper(); else if (r < 0.34) creak(1.2 + Math.random()); else if (r < 0.5) steps(3 + Math.floor(Math.random() * 4));
+    else if (r < 0.62) knock(); else if (r < 0.74) wail(); else if (r < 0.86) dripSnd(); else thud(Math.random() * 2 - 1, 0.7);
+  }
+}
+window.SND = { creak: creak, whisper: whisper, knock: knock, wail: wail, steps: steps, heartbeat: heartbeat, drip: dripSnd, thud: thud };
 
 // ================= UI =================
 var toastT = null;
@@ -953,8 +1141,8 @@ function exitHide() {
 }
 
 // ================= lights (dark: near-player light + flashlight + flickering lamps)
-var ambient = new THREE.AmbientLight(0x1c1f2c, 0.55); scene.add(ambient);
-var plight = new THREE.PointLight(0xffd9a0, 0.55, 6, 2); scene.add(plight);
+var ambient = new THREE.AmbientLight(0x14161f, 0.3); scene.add(ambient);
+var plight = new THREE.PointLight(0xffd9a0, 0.3, 5, 2); scene.add(plight);
 var flash = new THREE.SpotLight(0xfff2d8, 3.2, 22, 0.46, 0.55, 1.6); scene.add(flash); scene.add(flash.target);
 if (SHADOWS) { flash.castShadow = true; flash.shadow.mapSize.set(512, 512); flash.shadow.camera.near = 0.2; flash.shadow.camera.far = 20; flash.shadow.bias = -0.0005; }
 var flashOn = true;
@@ -967,7 +1155,7 @@ function updateLamps() {
     var P2 = POOL[k], L2 = cand[k];
     if (!L2 || L2.d > 14) { P2.intensity = 0; continue; }
     var fl = 0.65 + 0.2 * Math.sin(time * 11 + L2.ph) + 0.15 * Math.sin(time * 27 + L2.ph * 3); if (Math.sin(time * 1.3 + L2.ph * 5) > 0.93) fl *= 0.15;
-    P2.position.set(L2.x, L2.y, L2.z); P2.color.setHex(L2.c); P2.intensity = (S.power ? 1.2 : 0.8) * fl;
+    P2.position.set(L2.x, L2.y, L2.z); P2.color.setHex(L2.c); P2.intensity = (S.power ? 0.75 : 0.45) * fl;
   }
 }
 if (DBG.top) { ambient.intensity = 3.2; flash.visible = false; plight.visible = false; POOL.forEach(function (p) { p.visible = false; }); }
@@ -1120,13 +1308,16 @@ function update(dt) {
     flash.position.set(P.x, ey, P.z); flash.target.position.set(P.x + fdx * 6, ey + fdy * 6, P.z + fdz * 6);
     flash.visible = flashOn && !S.hidden;
   }
+  swayStep(time);
   // visibility
   for (var l = 0; l < 3; l++) LG[l].visible = DBG.top ? (l === +DBG.top - 0) : Math.abs(P.y - LV[l]) < STEP + 0.3;
   if (!DBG.top) { updateLamps(); ROOF.visible = levelOf(P.y) === 2 || P.y > 1.4; }
   if (DBG.top) ROOF.visible = false;
   // doors
   for (var i = 0; i < DOORS.length; i++) {
-    var d = DOORS[i], tg = d.open ? d.w * 0.92 : 0; d.off += (tg - d.off) * Math.min(1, dt * 5); if (d.ax === 'h') d.mesh.position.x = d.cx + d.off; else d.mesh.position.z = d.cz + d.off;
+    var d = DOORS[i]; d.tgt = d.open ? d.side * 1.55 : 0; var df = d.tgt - d.ang; d.ang += df * Math.min(1, dt * 3.2);
+    if (d.open && Math.abs(df) > 0.05 && Math.abs(df) < 1.4 && !d.cr) { d.cr = true; } if (Math.abs(df) < 0.04) d.cr = false;
+    d.mesh.rotation.y = d.base + d.ang + (d.open ? Math.sin(time * 0.8 + i) * 0.006 : 0);
   }
   for (var k = 0; k < MARKERS.length; k++) { var mm = MARKERS[k]; if (!mm.visible) continue; mm.rotation.y = time * 2; mm.position.y = mm.userData.by + Math.sin(time * 2.5 + k) * 0.03; }
   // keeper model
@@ -1189,6 +1380,7 @@ loop();
 
 // ================= automated logic test =================
 function autotest() {
+  NOKEY = false;
   var out = [], ok = true;
   function chk(n, c) { out.push((c ? 'ok  ' : 'FAIL ') + n); if (!c) ok = false; }
   function act(id) { for (var i = 0; i < INTS.length; i++) if (INTS[i].id === id) { INTS[i].act(); return INTS[i]; } throw new Error('no int ' + id); }
