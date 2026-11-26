@@ -1,4 +1,4 @@
-/* kitchen.js  -  standalone decayed horror kitchen module (own scene, no dependency on any house file).  v0.2
+/* kitchen.js  -  standalone decayed horror kitchen module (own scene, no dependency on any house file).  v0.3
  * Needs only three.js r128 (global THREE).
  *
  *   var K = KitchenModule.build(THREE, { quality: '1k' | '2k' (default) | '4k', floorTexSize: metres per floor texture (tile scale),
@@ -17,8 +17,8 @@
   var W = 5.2, D = 4.2, H = 2.8; // room width (x), depth (z), height
   // ===== TEXTURE CONFIG (swap floor / wall / tiles here; 'size' = real-world metres covered by one texture image) =====
   var TEX = {
-    floor: { id: 'brown_floor_tiles', size: 0.9, tint: 0xffffff, rough: 0.5 },   // option E (ceramic floor)
-    wall:  { id: 'damaged_plaster',   size: 1.4, tint: 0xb4aea4, rough: 0.95, nor: 1.2 },
+    floor: { id: 'brown_floor_tiles', size: 0.9, tint: 0x9a928a, rough: 0.5 },   // option E (ceramic floor)
+    wall:  { id: 'damaged_plaster',   size: 1.4, tint: 0x8c877e, rough: 0.95, nor: 1.2 },
     tiles: { id: 'long_white_tiles',  size: 0.6, tint: 0xd8d0bc, rough: 0.35 },  // tiled wall areas (behind counter)
     ceil:  { id: 'damaged_plaster',   size: 1.4, tint: 0x6d6a64, rough: 1.0 },
     wood:  { id: 'dark_wood',         size: 1.0, tint: 0x9a8576, rough: 0.6 }
@@ -37,7 +37,7 @@
 
     // ---------- Poly Haven PBR materials ----------
     function pbr(cfg, surfW, surfH, fallback) {
-      var m = new THREE.MeshStandardMaterial({ color: fallback, roughness: cfg.rough, metalness: 0, envMapIntensity: 0.25 }), id = cfg.id;
+      var m = new THREE.MeshStandardMaterial({ color: fallback, roughness: cfg.rough, metalness: 0, envMapIntensity: 0.1 }), id = cfg.id;
       var ru = surfW / cfg.size, rv = surfH / cfg.size;
       function tex(kind, srgb, apply) {
         progress.total++;
@@ -71,7 +71,7 @@
         var bg = g.createLinearGradient(0, h, 0, h * 0.55); bg.addColorStop(0, 'rgba(18,12,6,0.65)'); bg.addColorStop(1, 'rgba(18,12,6,0)'); g.fillStyle = bg; g.fillRect(0, h * 0.55, w, h * 0.45);
       });
     }
-    function std(map, o) { o = o || {}; return new THREE.MeshStandardMaterial({ map: map, color: o.color === undefined ? 0xffffff : o.color, roughness: o.rough === undefined ? 0.6 : o.rough, metalness: o.metal || 0, envMapIntensity: 0.3 }); }
+    function std(map, o) { o = o || {}; return new THREE.MeshStandardMaterial({ map: map, color: o.color === undefined ? 0xffffff : o.color, roughness: o.rough === undefined ? 0.6 : o.rough, metalness: o.metal || 0, envMapIntensity: 0.12 }); }
     var mFridge = std(aged(3, '#b5a678', { rust: 0.7, dark: 0.8 }), { rough: 0.55 });
     var mStove = std(aged(11, '#a89c74', { rust: 0.8, dark: 1 }), { rough: 0.55 });
     var mSteel = std(aged(17, '#7d7a72', { rust: 1, dark: 1.3 }), { rough: 0.5, metal: 0.55 });
@@ -296,10 +296,10 @@
       box(1.0, 0.05, 0.7, mWood, 0, 0.76, 0, tg); [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]].forEach(function (p) { box(0.05, 0.74, 0.05, mWood, p[0], 0.37, p[1], tg); });
       solid(1.0 - 0.52, 1.0 + 0.52, 0.5 - 0.37, 0.5 + 0.37);
       plates(tg, 0.1, 0.785, 0.05, 2, 0.09); bottle(tg, -0.25, 0.785, -0.1, 1); rag(tg, 0.3, 0.785, 0.1);
-      var c = new THREE.Group(); c.position.set(0.9, 0, 0.62); c.rotation.set(0, 0.6, 0); tg.add(c); // toppled chair
+      var c = new THREE.Group(); c.position.set(-0.75, 0, 0.62); c.rotation.set(0, 0.6, 0); tg.add(c); // toppled chair
       box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, c); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, c);
       var c2 = new THREE.Group(); c2.position.set(-0.2, 0, -0.55); c2.rotation.y = Math.PI; tg.add(c2); box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, c2); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, c2); [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(0.04, 0.45, 0.04, mWood, p[0], 0.22, p[1], c2); });
-      solid(1.0 - 0.45, 1.0 + 0.45, 0.5 + 0.3, 0.5 + 0.95);
+      solid(0.0, 0.5, 0.85, 1.35); solid(0.55, 1.05, -0.3, 0.1);
     })();
     (function () { var c = cyl(0.17, 0.17, 0.03, mPlate, 0.4, 2.3, bz + 0.02); c.rotation.x = Math.PI / 2; box(0.01, 0.12, 0.01, mBlack, 0.4, 2.33, bz + 0.04, null, false); box(0.08, 0.01, 0.01, mBlack, 0.43, 2.3, bz + 0.04, null, false);
       cyl(0.17, 0.14, 0.45, std(null, { color: 0x1f2a22, rough: 0.7 }), W / 2 - 0.3, 0.22, bz + 0.35); solid(W / 2 - 0.5, W / 2, bz, bz + 0.55); })();
@@ -347,19 +347,55 @@
     });
     decal(smear, 0.5, 1.5, -0.8, 0.004, 1.3, 0, -Math.PI / 2, 0.9).rotation.z = 0.3;
 
+    // ---------- eerie props and details (v0.3) ----------
+    var mDoll = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDress = std(aged(73, '#5a4a52', { rust: 0, dark: 1.6 }), { rough: 0.95 }), mEye = new THREE.MeshBasicMaterial({ color: 0x050505 });
+    function doll(x, y, z, ry, tilt) { var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; group.add(g);
+      var body = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.2, 10), mDress); body.position.y = 0.1; g.add(body);
+      var head = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 12), mDoll); head.position.y = 0.26; head.rotation.z = tilt; g.add(head);
+      [-0.022, 0.022].forEach(function (ex) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), mEye); e.position.set(ex, 0.012, 0.052); head.add(e); });
+      [-1, 1].forEach(function (sd) { var a = box(0.02, 0.12, 0.02, mDoll, sd * 0.07, 0.12, 0.02, g, false); a.rotation.z = sd * 0.5; }); return g; }
+    doll(0.75, 0.785, 0.4, Math.atan2(dx - 0.75, D / 2 - 0.4), 0.25);
+    box(0.14, 0.08, 0.1, mWood, 1.2, 0.825, 0.5, null, false); box(0.14, 0.015, 0.1, mWood, 1.2, 0.87, 0.5, null, false).rotation.x = -0.9;
+    doll(lz + 0.15, 0.94, -0.45, Math.PI / 2, 0.0); doll(lz + 0.15, 1.44, 0.55, Math.PI / 2 + 0.3, -0.35); doll(lz + 0.15, 1.94, 0.0, Math.PI / 2 - 0.2, 0.5);
+    [-0.06, 0.06].forEach(function (o) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff3018 })); e.position.set(skx + 0.18 + o, 0.34, cz - 0.2); group.add(e); });
+    var hands = decalTex(512, 256, function (g, w, h) { var r = rnd(8); g.fillStyle = 'rgba(70,5,5,0.85)'; for (var k = 0; k < 5; k++) { var x = 60 + k * 95 + r() * 20, y = 80 + r() * 90 - k * 4, a = (r() - 0.5) * 0.5; g.save(); g.translate(x, y); g.rotate(a); g.fillRect(-20, 0, 40, 52); [-22, -11, 0, 11, 22].forEach(function (fx, i) { g.fillRect(fx - 4, -34 + Math.abs(i - 2) * 9, 8, 36); }); g.fillRect(-34, 8, 14, 8); g.fillRect(-10, 52, 20, 100 * r()); g.restore(); } });
+    decal(hands, 0.9, 0.45, -W / 2 + 0.008, 1.1, -1.1, Math.PI / 2, 0, 0.95);
+    var tally = decalTex(256, 128, function (g, w, h) { g.strokeStyle = 'rgba(15,10,8,0.9)'; g.lineWidth = 3; for (var b = 0; b < 4; b++) { for (var i = 0; i < 4; i++) { g.beginPath(); g.moveTo(14 + b * 60 + i * 9, 20); g.lineTo(14 + b * 60 + i * 9 + 1, 80); g.stroke(); } g.beginPath(); g.moveTo(8 + b * 60, 70); g.lineTo(50 + b * 60, 28); g.stroke(); } });
+    decal(tally, 0.7, 0.35, W / 2 - 0.01, 1.0, -1.45, -Math.PI / 2, 0, 0.9);
+    var msg = decalTex(512, 128, function (g, w, h) { g.fillStyle = 'rgba(95,6,6,0.9)'; g.font = 'bold 74px serif'; g.textAlign = 'center'; g.direction = 'rtl'; g.fillText('نامي يا صغيرتي', w / 2, 86); for (var i = 0; i < 9; i++) g.fillRect(40 + (i * 53) % 430, 70, 3, 20 + (i * 17) % 38); });
+    decal(msg, 1.5, 0.375, 0.9, 2.0, D / 2 - 0.009, Math.PI, 0, 0.95);
+    var drw = decalTex(128, 160, function (g, w, h) { g.fillStyle = '#9a8e6e'; g.fillRect(0, 0, w, h); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; g.beginPath(); g.arc(64, 50, 16, 0, 6.283); g.moveTo(64, 66); g.lineTo(64, 115); g.moveTo(64, 80); g.lineTo(38, 100); g.moveTo(64, 80); g.lineTo(90, 100); g.moveTo(64, 115); g.lineTo(46, 150); g.moveTo(64, 115); g.lineTo(84, 150); g.stroke(); g.fillStyle = '#7a0a0a'; g.fillRect(55, 45, 6, 6); g.fillRect(68, 45, 6, 6); g.fillRect(40, 20, 50, 4); });
+    decal(drw, 0.24, 0.3, W / 2 - 0.01, 1.5, 0.9, -Math.PI / 2, 0, 1); decal(drw, 0.2, 0.25, W / 2 - 0.01, 1.35, 1.25, -Math.PI / 2, 0, 1).rotation.z = 0.12;
+    cyl(0.008, 0.008, 0.9, mRag, 0.5, H - 0.45, 0.0); (function () { var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0x050404, roughness: 1, metalness: 0 })); sh.position.set(0.5, 1.55, 0.0); group.add(sh); })();
+    solid(0.45, 0.55, -0.05, 0.05);
+
     // ---------- lights (one shadow-casting light only, for performance) ----------
     var fl = new THREE.Group(); group.add(fl);
     box(1.2, 0.05, 0.2, new THREE.MeshStandardMaterial({ color: 0x555048, roughness: 0.7 }), 0, H - 0.03, 0.0, fl, false);
     var tube = box(1.1, 0.025, 0.1, new THREE.MeshBasicMaterial({ color: 0xe8f2ff }), 0, H - 0.062, 0, fl, false);
-    var lamp = new THREE.PointLight(0xdfe8d0, 0.7, 9, 1.8); lamp.position.set(0, H - 0.25, 0.1); lamp.castShadow = true; lamp.shadow.mapSize.set(q === '1k' ? 512 : 1024, q === '1k' ? 512 : 1024); lamp.shadow.bias = -0.0008; group.add(lamp);
-    var moon = new THREE.DirectionalLight(0x6f86c8, 0.3); moon.position.set(W / 2 + 2, 3, -0.2); moon.target.position.set(0, 0.5, 0); group.add(moon, moon.target);
-    var hemi = new THREE.HemisphereLight(0x6a7490, 0x1a1512, 0.1); group.add(hemi);
-    var under = new THREE.PointLight(0xffe6c0, 0.12, 2.5, 2); under.position.set(sx, 1.5, bz + 0.3); group.add(under);
-    var burst = 0, gap = 2;
+    var lamp = new THREE.PointLight(0xcfe0c4, 0.34, 8, 2); lamp.position.set(0, H - 0.25, 0.1); lamp.castShadow = true; lamp.shadow.mapSize.set(q === '1k' ? 512 : 1024, q === '1k' ? 512 : 1024); lamp.shadow.bias = -0.0008; group.add(lamp);
+    var moon = new THREE.DirectionalLight(0x5a70b0, 0.07); moon.position.set(W / 2 + 2, 3, -0.2); moon.target.position.set(0, 0.5, 0); group.add(moon, moon.target);
+    var hemi = new THREE.HemisphereLight(0x4a5470, 0x100c0a, 0.025); group.add(hemi);
+    var under = new THREE.PointLight(0xffe6c0, 0.04, 2.5, 2); under.position.set(sx, 1.5, bz + 0.3); group.add(under);
+    // fluorescent flicker with real blackouts; a dark figure shows for a split second when the light returns
+    var burst = 0, gap = 3, black = 0, fig = null, figSpots = [[-2.1, 1.7], [2.3, -0.9], [0.6, -1.6]], figT = 0, scareCb = opt.onScare, A = null;
+    var figTex = canvasTex(128, 320, function (g, w, h) { g.fillStyle = '#000'; g.beginPath(); g.arc(64, 38, 24, 0, 6.283); g.fill(); g.fillRect(36, 58, 56, 150); g.fillRect(24, 62, 14, 130); g.fillRect(90, 62, 14, 130); g.fillRect(40, 200, 20, 120); g.fillRect(68, 200, 20, 120); g.fillStyle = 'rgba(200,20,10,0.9)'; g.fillRect(52, 34, 6, 4); g.fillRect(70, 34, 6, 4); });
+    fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; group.add(fig);
+    group.userData.camX = 0; group.userData.camZ = 0;
+    function thump() { if (!A) return; var o = A.ctx.createOscillator(), g = A.ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(70, A.ctx.currentTime); o.frequency.exponentialRampToValueAtTime(28, A.ctx.currentTime + 0.5); g.gain.setValueAtTime(0.5, A.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, A.ctx.currentTime + 0.6); o.connect(g); g.connect(A.ctx.destination); o.start(); o.stop(A.ctx.currentTime + 0.7); }
+    function enableAudio() { // call from a user gesture. Fluorescent hum + low drone; the hum follows the light.
+      if (A) return; var AC = root.AudioContext || root.webkitAudioContext; if (!AC) return; var ctx = new AC(); if (ctx.resume) ctx.resume();
+      var hum = ctx.createOscillator(), hg = ctx.createGain(), dr = ctx.createOscillator(), dg = ctx.createGain(); hum.type = 'sawtooth'; hum.frequency.value = 100; hg.gain.value = 0.012; dr.type = 'sine'; dr.frequency.value = 43; dg.gain.value = 0.05;
+      hum.connect(hg); hg.connect(ctx.destination); dr.connect(dg); dg.connect(ctx.destination); hum.start(); dr.start(); A = { ctx: ctx, hg: hg };
+    }
     flick.push(function (dt) {
+      if (group.userData.freeze) { lamp.intensity = 0.34; if (group.userData.showFig) { fig.position.set(2.2, 0.85, -0.9); fig.rotation.y = Math.atan2(group.userData.camX - 2.2, group.userData.camZ + 0.9); fig.visible = true; figT = 0; } else fig.visible = false; return; }
       var v = 1; gap -= dt;
-      if (burst > 0) { burst -= dt; v = Math.random() < 0.5 ? 0.08 : 0.9; if (burst <= 0) gap = 1.5 + Math.random() * 5; } else if (gap <= 0) burst = 0.3 + Math.random() * 0.7;
-      lamp.intensity = 0.7 * v; tube.material.color.setScalar(0.3 + 0.7 * v).multiply(new THREE.Color(0.9, 0.95, 1));
+      if (black > 0) { black -= dt; v = 0; if (black <= 0) { gap = 3 + Math.random() * 6; if (Math.random() < 0.6) { var p = figSpots[Math.floor(Math.random() * figSpots.length)]; fig.position.set(p[0], 0.85, p[1]); fig.rotation.y = Math.atan2(group.userData.camX - p[0], group.userData.camZ - p[1]); fig.visible = true; figT = 0.35; } } }
+      else if (burst > 0) { burst -= dt; v = Math.random() < 0.55 ? 0.03 : 0.8; if (burst <= 0) { black = 0.5 + Math.random() * 1.6; thump(); if (scareCb) scareCb(); } }
+      else if (gap <= 0) burst = 0.35 + Math.random() * 0.6;
+      if (figT > 0) { figT -= dt; if (figT <= 0) fig.visible = false; }
+      lamp.intensity = 0.34 * v; tube.material.color.setScalar(0.04 + 0.5 * v).multiply(new THREE.Color(0.9, 0.95, 1)); if (A) A.hg.gain.value = 0.012 * (v > 0.5 ? 1 : 0.15);
     });
 
     // generated environment map for reflections (no download)
@@ -392,8 +428,8 @@
       toggle: function (n) { var it = byName(n); if (it) it.open = !it.open; return it; }, open: function (n) { var it = byName(n); if (it) it.open = true; }, close: function (n) { var it = byName(n); if (it) it.open = false; },
       bounds: { minX: -W / 2 + 0.25, maxX: W / 2 - 0.25, minZ: -D / 2 + 0.25, maxZ: D / 2 + 0.6, height: H },
       spawn: { x: dx, z: D / 2 - 0.5, yaw: Math.PI }, exitDoor: { x: dx, z: D / 2 },
-      size: { w: W, d: D, h: H }, progress: progress, license: 'Textures: Poly Haven, CC0', version: '0.2'
+      enableAudio: enableAudio, debug: function (freeze, showFig) { group.userData.freeze = freeze; group.userData.showFig = showFig; }, setCamera: function (x, z) { group.userData.camX = x; group.userData.camZ = z; }, size: { w: W, d: D, h: H }, progress: progress, license: 'Textures: Poly Haven, CC0', version: '0.3'
     };
   }
-  root.KitchenModule = { build: build, version: '0.2' };
+  root.KitchenModule = { build: build, version: '0.3' };
 })(typeof window !== 'undefined' ? window : this);
