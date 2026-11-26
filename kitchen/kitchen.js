@@ -1,13 +1,15 @@
-/* kitchen.js  -  standalone realistic kitchen module (own scene, no dependency on any house file).
+/* kitchen.js  -  standalone decayed horror kitchen module (own scene, no dependency on any house file).  v0.2
  * Needs only three.js r128 (global THREE).
  *
- *   var K = KitchenModule.build(THREE, { quality: '1k' | '2k' (default) | '4k', floorTexSize: metres per floor texture (adjustable tile scale), wallTexSize, renderer: renderer, onProgress: fn(done,total) });
- *   scene.add(K.group);                       // the whole room, origin at the room centre on the floor, door on the +z side
+ *   var K = KitchenModule.build(THREE, { quality: '1k' | '2k' (default) | '4k', floorTexSize: metres per floor texture (tile scale),
+ *                                        wallTexSize, renderer: renderer, onProgress: fn(done,total) });
+ *   scene.add(K.group);                       // the whole room, origin at the room centre on the floor, doorway on the +z side
  *   K.update(dt);                             // animates doors/drawers and the flickering light
  *   K.toggle('oven'); K.open(name) / K.close(name); K.interactives  // [{name,label,object,open}]
  *   K.pick(raycaster)  -> interactive under the ray (or null);  K.colliders -> AABBs [{minX,maxX,minZ,maxZ}] for player collision
  *   K.bounds  -> {minX,maxX,minZ,maxZ,height}; K.spawn -> {x,z,yaw} suggested player start; K.exitDoor -> {x,z} doorway centre
- * Textures: Poly Haven (CC0) loaded lazily from dl.polyhaven.org; plain coloured materials are used until they arrive, or if offline.
+ * Textures: Poly Haven (CC0) for floor/walls/tiles/wood, loaded lazily from dl.polyhaven.org; plain colours until they arrive or if offline.
+ * Fixtures (fridge, stove, rusty steel, grime, cobwebs, cracks, blood) are drawn procedurally in canvases, nothing else is downloaded.
  */
 (function (root) {
   'use strict';
@@ -17,9 +19,9 @@
   var TEX = {
     floor: { id: 'brown_floor_tiles', size: 0.9, tint: 0xffffff, rough: 0.5 },   // option E (ceramic floor)
     wall:  { id: 'damaged_plaster',   size: 1.4, tint: 0xb4aea4, rough: 0.95, nor: 1.2 },
-    tiles: { id: 'long_white_tiles',  size: 0.6, tint: 0xe8e4d8, rough: 0.35 }, // tiled wall areas (behind counter)
-    ceil:  { id: 'damaged_plaster',   size: 1.4, tint: 0x7d7a74, rough: 1.0 },
-    wood:  { id: 'dark_wood',         size: 1.0, tint: 0xb59a86, rough: 0.55 }
+    tiles: { id: 'long_white_tiles',  size: 0.6, tint: 0xd8d0bc, rough: 0.35 },  // tiled wall areas (behind counter)
+    ceil:  { id: 'damaged_plaster',   size: 1.4, tint: 0x6d6a64, rough: 1.0 },
+    wood:  { id: 'dark_wood',         size: 1.0, tint: 0x9a8576, rough: 0.6 }
   };
 
   function build(THREE, opt) {
@@ -27,13 +29,13 @@
     var q = opt.quality || '2k'; if (opt.floorTexSize) TEX.floor.size = opt.floorTexSize; if (opt.wallTexSize) TEX.wall.size = opt.wallTexSize;
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 4;
     var group = new THREE.Group(); group.name = 'kitchen';
-    var interactives = [], colliders = [], flick = [], tickers = [];
+    var interactives = [], colliders = [], flick = [];
     var loader = new THREE.TextureLoader(); loader.crossOrigin = 'anonymous';
     var progress = { done: 0, total: 0 };
     function bump() { progress.done++; if (opt.onProgress) opt.onProgress(progress.done, progress.total); }
+    function rnd(seed) { var a = seed; return function () { a = (a * 16807) % 2147483647; return a / 2147483647; }; }
 
-    // ---------- materials ----------
-    // PBR material from a Poly Haven id. cfg = TEX entry; surfW/surfH = surface size in metres (repeat = surface / cfg.size, so scale is identical everywhere)
+    // ---------- Poly Haven PBR materials ----------
     function pbr(cfg, surfW, surfH, fallback) {
       var m = new THREE.MeshStandardMaterial({ color: fallback, roughness: cfg.rough, metalness: 0, envMapIntensity: 0.25 }), id = cfg.id;
       var ru = surfW / cfg.size, rv = surfH / cfg.size;
@@ -54,50 +56,111 @@
     var mCeil = pbr(TEX.ceil, W, D, 0x55524c);
     var mBack = pbr(TEX.tiles, W, 0.62, 0xc8c4b6);
     var mWood = pbr(TEX.wood, 1.0, 1.0, 0x4a3020), mWoodDoor = pbr(TEX.wood, 0.6, 0.8, 0x4a3020);
-    var mTop = new THREE.MeshStandardMaterial({ color: 0x2b2a2a, roughness: 0.28, metalness: 0.1, envMapIntensity: 1 });
-    var mEnamel = new THREE.MeshStandardMaterial({ color: 0xbdb9ac, roughness: 0.28, metalness: 0.1, envMapIntensity: 1 });
-    var mSteel = new THREE.MeshStandardMaterial({ color: 0xb4b8bc, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.2 });
-    var mBlack = new THREE.MeshStandardMaterial({ color: 0x0c0c0d, roughness: 0.45, metalness: 0.3 });
-    var mGlass = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.8, envMapIntensity: 1.5 });
-    var mHandle = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.25, metalness: 0.95, envMapIntensity: 1.3 });
-    var mTrim = new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 0.6 });
-    var mRed = new THREE.MeshStandardMaterial({ color: 0x8c1a14, roughness: 0.5, metalness: 0.4 });
+
+    // ---------- procedural aged textures (canvas): yellowed enamel, rusty steel, stained counter, items ----------
+    function canvasTex(w, h, paint, srgb) { var c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); var t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.wrapS = t.wrapT = THREE.RepeatWrapping; if (srgb !== false) t.encoding = THREE.sRGBEncoding; return t; }
+    // aged(): base colour + blotches + rust drips from the top + chips + scratches + bottom grime. o.rust 0..1, o.dark 0..1
+    function aged(seed, base, o) {
+      o = o || {}; return canvasTex(512, 512, function (g, w, h) {
+        var r = rnd(seed); g.fillStyle = base; g.fillRect(0, 0, w, h);
+        for (var i = 0; i < 70; i++) { var x = r() * w, y = r() * h, rad = 20 + r() * 70, b = g.createRadialGradient(x, y, 0, x, y, rad); var dk = r() < 0.6; b.addColorStop(0, dk ? 'rgba(40,28,10,' + (0.08 + r() * 0.16 * (1 + (o.dark || 0))) + ')' : 'rgba(255,240,200,' + (0.04 + r() * 0.07) + ')'); b.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = b; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+        var nrust = Math.round(14 * (o.rust === undefined ? 0.5 : o.rust));
+        for (var k = 0; k < nrust; k++) { var rx = r() * w, len = 60 + r() * 360, ww = 3 + r() * 16, gr = g.createLinearGradient(0, 0, 0, len); gr.addColorStop(0, 'rgba(110,50,16,' + (0.35 + r() * 0.35) + ')'); gr.addColorStop(1, 'rgba(110,50,16,0)'); g.fillStyle = gr; var y0 = r() < 0.5 ? 0 : r() * h * 0.5; g.save(); g.translate(rx, y0); g.fillRect(-ww / 2, 0, ww, len); g.restore(); }
+        for (var c = 0; c < 38; c++) { var cx = r() * w, cy = r() * h, cw = 3 + r() * 14, chh = 3 + r() * 10; g.fillStyle = 'rgba(60,34,18,0.9)'; g.fillRect(cx, cy, cw, chh); g.fillStyle = 'rgba(200,190,160,0.55)'; g.fillRect(cx - 1, cy - 1, cw + 2, 1.5); }
+        g.strokeStyle = 'rgba(30,24,16,0.35)'; g.lineWidth = 1; for (var s = 0; s < 22; s++) { g.beginPath(); var sx = r() * w, sy = r() * h; g.moveTo(sx, sy); g.lineTo(sx + (r() - 0.5) * 140, sy + (r() - 0.5) * 140); g.stroke(); }
+        var bg = g.createLinearGradient(0, h, 0, h * 0.55); bg.addColorStop(0, 'rgba(18,12,6,0.65)'); bg.addColorStop(1, 'rgba(18,12,6,0)'); g.fillStyle = bg; g.fillRect(0, h * 0.55, w, h * 0.45);
+      });
+    }
+    function std(map, o) { o = o || {}; return new THREE.MeshStandardMaterial({ map: map, color: o.color === undefined ? 0xffffff : o.color, roughness: o.rough === undefined ? 0.6 : o.rough, metalness: o.metal || 0, envMapIntensity: 0.3 }); }
+    var mFridge = std(aged(3, '#b5a678', { rust: 0.7, dark: 0.8 }), { rough: 0.55 });
+    var mStove = std(aged(11, '#a89c74', { rust: 0.8, dark: 1 }), { rough: 0.55 });
+    var mSteel = std(aged(17, '#7d7a72', { rust: 1, dark: 1.3 }), { rough: 0.5, metal: 0.55 });
+    var mTop = std(aged(23, '#2c2926', { rust: 0.2, dark: 0.4 }), { rough: 0.38 });
+    var mInner = std(aged(29, '#9a8d62', { rust: 0.4, dark: 1.2 }), { rough: 0.6 });
+    var mCarc = std(aged(31, '#2a2017', { rust: 0, dark: 1.5 }), { rough: 0.85 });
+    var mBlack = new THREE.MeshStandardMaterial({ color: 0x0c0c0d, roughness: 0.5, metalness: 0.3 });
+    var mGlass = new THREE.MeshStandardMaterial({ color: 0x1a1812, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.82, envMapIntensity: 1.2 });
+    var mHandle = new THREE.MeshStandardMaterial({ color: 0x8c8479, roughness: 0.45, metalness: 0.8, envMapIntensity: 0.8 });
+    var mTrim = new THREE.MeshStandardMaterial({ color: 0x4a382a, roughness: 0.75 });
+    var mRed = std(aged(41, '#6e1a12', { rust: 1, dark: 1 }), { rough: 0.55, metal: 0.3 });
+    var palette = ['#6a2a22', '#3a4a30', '#8a7a3a', '#3a3a52', '#7a4a22', '#566052', '#8a8470', '#4a2a2a'];
+    function labelTex(i) { return canvasTex(64, 64, function (g, w, h) { var r = rnd(i * 13 + 5); g.fillStyle = palette[i % palette.length]; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(230,220,190,0.8)'; g.fillRect(0, 18, w, 26); g.fillStyle = 'rgba(40,20,10,0.8)'; g.fillRect(6, 24, 40 + r() * 10, 5); g.fillRect(6, 33, 30, 4); g.fillStyle = 'rgba(70,40,10,0.35)'; for (var k = 0; k < 6; k++) g.fillRect(r() * w, r() * h, 6 + r() * 10, 12 + r() * 30); }); }
+    var canMats = palette.map(function (c, i) { return std(labelTex(i), { rough: 0.5, metal: 0.4 }); });
+    var mJar = new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.2, transparent: true, opacity: 0.75, envMapIntensity: 1 });
+    var mFood = new THREE.MeshStandardMaterial({ color: 0x3a2a14, roughness: 0.9 });
+    var mMold = new THREE.MeshStandardMaterial({ color: 0x3e5a36, roughness: 1 });
+    var mPlate = std(aged(51, '#cfc7ad', { rust: 0.2, dark: 1 }), { rough: 0.35 });
+    var mRag = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 1 });
+    var mPaper = new THREE.MeshStandardMaterial({ color: 0x8a7e60, roughness: 0.9 });
 
     // ---------- helpers ----------
     function box(w, h, d, m, x, y, z, parent, shadow) {
       var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); if (shadow !== false) { o.castShadow = true; o.receiveShadow = true; } (parent || group).add(o); return o;
     }
-    function cyl(rt, rb, h, m, x, y, z, parent, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 20), m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; (parent || group).add(o); return o; }
+    function cyl(rt, rb, h, m, x, y, z, parent, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m); o.position.set(x, y, z); o.receiveShadow = true; (parent || group).add(o); return o; }
     function solid(minX, maxX, minZ, maxZ) { colliders.push({ minX: minX, maxX: maxX, minZ: minZ, maxZ: maxZ }); }
-    function bar(len, x, y, z, parent, vertical) { var g = new THREE.CylinderGeometry(0.011, 0.011, len, 10), o = new THREE.Mesh(g, mHandle); o.position.set(x, y, z); if (!vertical) o.rotation.z = Math.PI / 2; o.castShadow = true; (parent || group).add(o); return o; }
-    // hinged door: pivot at the hinge edge. kind 'v' = swings around a vertical axis, 'h' = around a horizontal axis at the bottom (oven)
-    function door(name, label, w, h, t, mat, x, y, z, hinge, kind, parent, handle) {
+    function bar(len, x, y, z, parent, vertical) { var o = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, len, 8), mHandle); o.position.set(x, y, z); if (!vertical) o.rotation.z = Math.PI / 2; (parent || group).add(o); return o; }
+    // hollow carcass (open at +z): sides, top, bottom, back. centre at local origin of the returned group.
+    function carcass(parent, w, h, d, mat, x, y, z) {
+      var g = new THREE.Group(); g.position.set(x, y, z); (parent || group).add(g); var t = 0.02;
+      box(t, h, d, mat, -w / 2 + t / 2, 0, 0, g); box(t, h, d, mat, w / 2 - t / 2, 0, 0, g);
+      box(w, t, d, mat, 0, h / 2 - t / 2, 0, g); box(w, t, d, mat, 0, -h / 2 + t / 2, 0, g); box(w - 2 * t, h - 2 * t, t, mat, 0, 0, -d / 2 + t / 2, g);
+      return g;
+    }
+    function shelf(g, w, d, y, mat) { return box(w - 0.04, 0.016, d - 0.03, mat || mCarc, 0, y, 0.0, g); }
+    // items (small props), base y = surface height in the parent's coordinates
+    var seedI = 100;
+    function can(p, x, y, z, i) { var o = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.105, 14), canMats[i % canMats.length]); o.position.set(x, y + 0.0525, z); o.rotation.y = i; p.add(o); return o; }
+    function jar(p, x, y, z) { cyl(0.04, 0.04, 0.13, mJar, x, y + 0.065, z, p, 12); cyl(0.034, 0.034, 0.08, mFood, x, y + 0.045, z, p, 10); cyl(0.042, 0.042, 0.015, mSteel, x, y + 0.138, z, p, 12); }
+    function bottle(p, x, y, z, i) { var m = std(null, { color: [0x3a4a2a, 0x4a3018, 0x2a3a4a][i % 3], rough: 0.2 }); m.transparent = true; m.opacity = 0.85; cyl(0.032, 0.032, 0.16, m, x, y + 0.08, z, p, 12); cyl(0.011, 0.018, 0.07, m, x, y + 0.195, z, p, 10); }
+    function plates(p, x, y, z, n, r) { for (var k = 0; k < n; k++) cyl(r || 0.1, (r || 0.1) * 0.8, 0.014, mPlate, x + (k % 2) * 0.004, y + 0.008 + k * 0.016, z, p, 18); }
+    function boxItem(p, x, y, z, w, h, d, i) { var o = box(w, h, d, canMats[i % canMats.length], x, y + h / 2, z, p, false); o.rotation.y = (i % 5) * 0.2 - 0.3; return o; }
+    function pot(p, x, y, z, rad) { cyl(rad, rad * 0.9, rad * 1.1, mSteel, x, y + rad * 0.55, z, p, 16); cyl(rad * 0.85, rad * 0.85, 0.01, mBlack, x, y + rad * 1.1, z, p, 16); }
+    function rag(p, x, y, z) { var o = box(0.2, 0.025, 0.16, mRag, x, y + 0.012, z, p, false); o.rotation.y = 0.5; }
+    function bone(p, x, y, z) { box(0.14, 0.03, 0.09, mMold, x, y + 0.015, z, p, false); }
+    // fill a cabinet carcass interior surfaces: ys = list of surface heights (local to carcass group), w/d interior extents
+    function stock(g, w, d, ys, kind) {
+      var r = rnd(seedI++);
+      ys.forEach(function (y, si) {
+        var n = 4 + Math.floor(r() * 3), x0 = -w / 2 + 0.07;
+        for (var k = 0; k < n; k++) {
+          var x = x0 + (w - 0.14) * (k + 0.5) / n, z = -d * 0.15 + (r() - 0.5) * d * 0.4, t = Math.floor(r() * 6);
+          if (kind === 'plates' && si === 0) { plates(g, x, y, z, 3 + Math.floor(r() * 5)); continue; }
+          if (t === 0) can(g, x, y, z, k + si); else if (t === 1) jar(g, x, y, z); else if (t === 2) bottle(g, x, y, z, k); else if (t === 3) boxItem(g, x, y, z, 0.1, 0.17, 0.07, k + si); else if (t === 4) pot(g, x, y, z, 0.08); else plates(g, x, y, z, 2 + Math.floor(r() * 4), 0.085);
+        }
+      });
+    }
+    // hinged door: pivot at the hinge edge. kind 'v' = vertical axis, 'h' = horizontal axis at the bottom (oven). o.ajar: closed-state angle (hangs open), o.tilt: tilt (broken hinge)
+    function door(name, label, w, h, t, mat, x, y, z, hinge, kind, parent, handle, o) {
+      o = o || {};
       var pivot = new THREE.Group(); pivot.position.set(x, y, z); (parent || group).add(pivot);
       var side = hinge === 'left' ? 1 : -1;
       var d = box(w, h, t, mat, kind === 'h' ? 0 : side * w / 2, kind === 'h' ? h / 2 : 0, 0, pivot);
-      var fx = -side * (w / 2 - 0.05); // free-edge side, in the door's own coordinates
+      var fx = -side * (w / 2 - 0.05);
       if (handle === 'bar-v') bar(Math.min(0.3, h * 0.5), fx, 0, t / 2 + 0.03, d, true);
       if (handle === 'bar-h') { bar(0.46, 0, h / 2 - 0.05, t / 2 + 0.045, d); [-1, 1].forEach(function (sg) { box(0.015, 0.015, 0.04, mHandle, sg * 0.22, h / 2 - 0.05, t / 2 + 0.02, d, false); }); }
-      if (handle === 'knob-top' || handle === 'knob-bot') { var kb = new THREE.Mesh(new THREE.SphereGeometry(0.017, 12, 10), mHandle); kb.position.set(fx, handle === 'knob-top' ? h / 2 - 0.07 : -h / 2 + 0.07, t / 2 + 0.02); d.add(kb); }
-      var it = { name: name, label: label, object: pivot, open: false, t: 0, kind: kind, target: kind === 'h' ? 1.5 : side * -1.9, mesh: d };
+      if (handle === 'knob-top' || handle === 'knob-bot') { var kb = new THREE.Mesh(new THREE.SphereGeometry(0.017, 10, 8), mHandle); kb.position.set(fx, handle === 'knob-top' ? h / 2 - 0.07 : -h / 2 + 0.07, t / 2 + 0.02); d.add(kb); }
+      var tgt = kind === 'h' ? 1.5 : side * -1.9, c = kind === 'h' ? 0 : (o.ajar ? side * -o.ajar : 0);
+      if (o.tilt) pivot.rotation.z = o.tilt;
+      var it = { name: name, label: label, object: pivot, open: false, t: 0, kind: kind, target: tgt, c: c, mesh: d };
       interactives.push(it); return it;
     }
-    function drawer(name, label, w, h, dd, mat, x, y, z, parent) {
+    function drawer(name, label, w, h, dd, mat, x, y, z, parent, kind) {
       var g = new THREE.Group(); g.position.set(x, y, z); (parent || group).add(g);
-      box(w, h, 0.02, mat, 0, 0, 0, g);
-      box(w - 0.06, h - 0.05, dd, mWood, 0, -0.02, -dd / 2, g);
-      bar(Math.min(0.3, w * 0.5), 0, h / 2 - 0.05, 0.05, g);
-      interactives.push({ name: name, label: label, object: g, open: false, t: 0, kind: 'slide', base: z, target: 0.38, mesh: g.children[0] });
+      box(w, h, 0.02, mat, 0, 0, 0, g); bar(Math.min(0.3, w * 0.5), 0, h / 2 - 0.05, 0.05, g);
+      var bw = w - 0.06, by = -h / 2 + 0.02; // open-top drawer box
+      box(bw, 0.015, dd, mCarc, 0, by, -dd / 2 - 0.01, g); box(0.015, h - 0.06, dd, mCarc, -bw / 2, by + (h - 0.06) / 2, -dd / 2 - 0.01, g); box(0.015, h - 0.06, dd, mCarc, bw / 2, by + (h - 0.06) / 2, -dd / 2 - 0.01, g); box(bw, h - 0.06, 0.015, mCarc, 0, by + (h - 0.06) / 2, -dd - 0.01, g);
+      var r = rnd(seedI++);
+      for (var k = 0; k < 6; k++) { var u = box(0.018, 0.012, 0.16 + r() * 0.08, mSteel, -bw / 2 + 0.05 + k * (bw - 0.1) / 5, by + 0.015, -0.14 - r() * 0.16, g, false); u.rotation.y = (r() - 0.5) * 0.4; }
+      if (kind === 'rags') rag(g, 0.0, by + 0.01, -0.35); else box(0.12, 0.04, 0.1, mPaper, 0.1, by + 0.03, -0.38, g, false);
+      interactives.push({ name: name, label: label, object: g, open: false, t: 0, kind: 'slide', base: z, target: 0.38, c: 0, mesh: g.children[0] });
     }
 
     // ---------- shell ----------
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mFloor); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; group.add(floor);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mCeil); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; group.add(ceil);
     function wall(w, mat, x, z, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), mat); m.position.set(x, H / 2, z); m.rotation.y = ry; m.receiveShadow = true; group.add(m); return m; }
-    wall(W, mWallA, 0, -D / 2, 0);                                  // back wall (counters)
-    wall(D, mWallB, -W / 2, 0, Math.PI / 2);                        // left wall (shelves)
-    wall(D, mWallC, W / 2, 0, -Math.PI / 2);                        // right wall (window)
-    // front wall with a doorway (centre x=-0.9, width 1.0, height 2.1)
+    wall(W, mWallA, 0, -D / 2, 0); wall(D, mWallB, -W / 2, 0, Math.PI / 2); wall(D, mWallC, W / 2, 0, -Math.PI / 2);
     var dx = -0.9, dw = 1.0, dh = 2.1;
     (function () { var l = W / 2 + dx - dw / 2, r = W / 2 - (dx + dw / 2);
       var a = new THREE.Mesh(new THREE.PlaneGeometry(l, H), mWallA); a.position.set(-W / 2 + l / 2, H / 2, D / 2); a.rotation.y = Math.PI; group.add(a);
@@ -105,168 +168,173 @@
       var c = new THREE.Mesh(new THREE.PlaneGeometry(dw, H - dh), mWallA); c.position.set(dx, dh + (H - dh) / 2, D / 2); c.rotation.y = Math.PI; group.add(c);
       box(0.08, dh, 0.12, mTrim, dx - dw / 2 - 0.04, dh / 2, D / 2 - 0.02); box(0.08, dh, 0.12, mTrim, dx + dw / 2 + 0.04, dh / 2, D / 2 - 0.02); box(dw + 0.16, 0.08, 0.12, mTrim, dx, dh + 0.04, D / 2 - 0.02);
     })();
-    // skirting
     [[W, -D / 2 + 0.01, 0, 0], [D, 0, -W / 2 + 0.01, Math.PI / 2], [D, 0, W / 2 - 0.01, Math.PI / 2]].forEach(function (s) { var sk = box(s[0], 0.1, 0.02, mTrim, s[2], 0.05, s[1]); sk.rotation.y = s[3]; });
 
     // ---------- back wall: tile splash, base cabinets, counter ----------
-    var bz = -D / 2; // wall plane
+    var bz = -D / 2;
     var splash = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.02, 0.62), mBack); splash.position.set(0, 1.21, bz + 0.005); splash.receiveShadow = true; group.add(splash);
-    var cd = 0.62, ch = 0.86, cz = bz + cd / 2; // cabinet depth/height/centre z
-    // layout along x (left to right): fridge | cab | stove | cab | sink cab | cab
-    var fr = { x: -W / 2 + 0.45, w: 0.8 };
-    // fridge
+    var cd = 0.62, ch = 0.86, cz = bz + cd / 2;
+
+    // ---- FRIDGE: now on the front wall, right of the doorway, facing into the room ----
+    var FR = { x: 1.9, w: 0.8, d: 0.72 };
     (function () {
-      var fg = new THREE.Group(); fg.position.set(fr.x, 0, bz + 0.38); group.add(fg);
-      box(fr.w, 1.85, 0.72, mEnamel, 0, 0.925, 0, fg);
-      solid(fr.x - fr.w / 2, fr.x + fr.w / 2, bz, bz + 0.74);
-      // two doors, hinged on the right (front face z = +0.36)
-      var itT = door('fridge_top', 'باب الثلاجة', fr.w - 0.02, 1.18, 0.05, mEnamel, fr.w / 2 - 0.01, 0.62 + 0.59, 0.37, 'right', 'v', fg);
-      var itB = door('freezer', 'باب الفريزر', fr.w - 0.02, 0.62, 0.05, mEnamel, fr.w / 2 - 0.01, 0.31, 0.37, 'right', 'v', fg);
-      // handles on the left edge of the doors
-      box(0.025, 0.55, 0.03, mHandle, -fr.w / 2 + 0.05, 0, 0.045, itT.mesh); box(0.025, 0.4, 0.03, mHandle, -fr.w / 2 + 0.05, 0.1, 0.045, itB.mesh);
-      // interior shelves & light visible when open
-      var inside = new THREE.Group(); fg.add(inside);
-      [0.75, 1.0, 1.25, 1.5].forEach(function (y) { box(fr.w - 0.1, 0.015, 0.6, new THREE.MeshStandardMaterial({ color: 0xcfd6d8, roughness: 0.2, transparent: true, opacity: 0.75 }), 0, y, -0.02, inside, false); });
-      box(0.12, 0.2, 0.1, new THREE.MeshStandardMaterial({ color: 0x7a2a22, roughness: 0.7 }), -0.2, 0.84, 0.05, inside); cyl(0.04, 0.04, 0.2, new THREE.MeshStandardMaterial({ color: 0x486a3a, roughness: 0.5 }), 0.15, 1.1, 0.05, inside);
+      var fg = new THREE.Group(); fg.position.set(FR.x, 0, D / 2 - FR.d / 2 - 0.02); fg.rotation.y = Math.PI; group.add(fg);
+      solid(FR.x - FR.w / 2, FR.x + FR.w / 2, D / 2 - FR.d - 0.02, D / 2);
+      var body = carcass(fg, FR.w, 1.85, FR.d, mFridge, 0, 0.925, 0);
+      // yellowed inner liner (slightly inside the outer shell)
+      box(FR.w - 0.05, 1.8, 0.008, mInner, 0, 0.925, -FR.d / 2 + 0.03, fg, false); box(0.008, 1.8, FR.d - 0.06, mInner, -FR.w / 2 + 0.03, 0.925, 0, fg, false); box(0.008, 1.8, FR.d - 0.06, mInner, FR.w / 2 - 0.03, 0.925, 0, fg, false); box(FR.w - 0.05, 0.008, FR.d - 0.06, mInner, 0, 1.82, 0, fg, false);
+      box(FR.w - 0.04, 0.03, FR.d - 0.05, mInner, 0, 0.62, 0, fg, false); // divider freezer / fridge
+      var gl = new THREE.MeshStandardMaterial({ color: 0x9aa59a, roughness: 0.2, transparent: true, opacity: 0.55 });
+      [0.78, 1.04, 1.30, 1.56].forEach(function (y, i) {
+        box(FR.w - 0.07, 0.012, FR.d - 0.08, gl, 0, y, 0.0, fg, false);
+        var r = rnd(200 + i); for (var k = 0; k < 4; k++) { var x = -0.27 + k * 0.18, z = -0.12 + (r() - 0.5) * 0.14, t = (k + i) % 5;
+          if (t === 0) jar(fg, x, y + 0.006, z); else if (t === 1) bottle(fg, x, y + 0.006, z, k); else if (t === 2) can(fg, x, y + 0.006, z, k + i); else if (t === 3) boxItem(fg, x, y + 0.006, z, 0.11, 0.14, 0.08, k + i); else { cyl(0.07, 0.07, 0.03, mMold, x, y + 0.02, z, fg, 12); } }
+      });
+      // spoiled food on the bottom shelf
+      cyl(0.09, 0.09, 0.05, mFood, 0.18, 0.66, 0.0, fg, 14); cyl(0.07, 0.07, 0.03, mMold, 0.18, 0.7, 0.0, fg, 12); boxItem(fg, -0.2, 0.635, 0.0, 0.18, 0.12, 0.2, 3);
+      // freezer: frosted blocks, ice
+      var fm = new THREE.MeshStandardMaterial({ color: 0xc9d6dc, roughness: 0.9 }); [-0.2, 0.0, 0.2].forEach(function (x, i) { box(0.15, 0.1 + i * 0.03, 0.2, fm, x, 0.11 + i * 0.015 + 0.05, -0.05, fg, false); });
+      box(0.5, 0.012, 0.4, fm, 0, 0.3, 0, fg, false); [0.1, -0.1].forEach(function (x) { box(0.12, 0.08, 0.16, mMold, x, 0.35, 0.0, fg, false); });
+      // doors (hinged on the +x side in fridge coordinates)
+      var itT = door('fridge_top', 'باب الثلاجة', FR.w - 0.02, 1.18, 0.05, mFridge, FR.w / 2 - 0.01, 0.62 + 0.59 + 0.02, FR.d / 2 + 0.02, 'right', 'v', fg);
+      var itB = door('freezer', 'باب الفريزر', FR.w - 0.02, 0.6, 0.05, mFridge, FR.w / 2 - 0.01, 0.31, FR.d / 2 + 0.02, 'right', 'v', fg, null, { ajar: 0.12 });
+      box(0.025, 0.55, 0.03, mHandle, -FR.w / 2 + 0.05, 0, 0.045, itT.mesh); box(0.025, 0.4, 0.03, mHandle, -FR.w / 2 + 0.05, 0.1, 0.045, itB.mesh);
+      // door shelves with bottles (on the inner face of the main door)
+      [-0.25, 0.05, 0.35].forEach(function (y, i) { box(FR.w - 0.12, 0.02, 0.07, mInner, 0, y, -0.06, itT.mesh, false); bottle(itT.mesh, -0.2 + i * 0.12, y + 0.01, -0.06, i); can(itT.mesh, 0.15, y + 0.01, -0.06, i + 2); });
+      box(FR.w - 0.1, 0.05, 0.01, mMold, 0, -0.52, -0.03, itT.mesh, false); // mould line along the door seal
     })();
-    // helper to place a base cabinet with a door (or drawer + door)
-    function baseCab(x, w, i, kind) {
-      box(w, ch - 0.1, cd, mWood, x, 0.1 + (ch - 0.1) / 2, cz); box(w + 0.01, 0.1, cd - 0.04, mBlack, x, 0.05, cz + 0.02, null, false);
-      solid(x - w / 2, x + w / 2, bz, bz + cd);
+
+    // helper: base cabinet with hollow carcass and stocked interior
+    function baseCab(x, w, i, kind, o) {
+      o = o || {}; var g = carcass(null, w, 0.76, cd, mCarc, x, 0.48, cz);
+      box(w + 0.01, 0.1, cd - 0.04, mBlack, x, 0.05, cz + 0.02, null, false); solid(x - w / 2, x + w / 2, bz, bz + cd);
       var fz = cz + cd / 2 + 0.01;
-      if (kind === 'drawers') { drawer('drawer' + i + 'a', 'درج', w - 0.02, 0.2, 0.5, mWoodDoor, x, 0.78, fz); drawer('drawer' + i + 'b', 'درج', w - 0.02, 0.28, 0.5, mWoodDoor, x, 0.55, fz); drawer('drawer' + i + 'c', 'درج', w - 0.02, 0.28, 0.5, mWoodDoor, x, 0.28, fz); }
-      else if (w > 0.7) {
-        var hw = w / 2 - 0.01;
-        door('base' + i + 'L', 'باب خزانة', hw, ch - 0.14, 0.022, mWoodDoor, x - w / 2 + 0.005, 0.1 + (ch - 0.14) / 2 + 0.03, fz, 'left', 'v', null, 'knob-top');
-        door('base' + i + 'R', 'باب خزانة', hw, ch - 0.14, 0.022, mWoodDoor, x + w / 2 - 0.005, 0.1 + (ch - 0.14) / 2 + 0.03, fz, 'right', 'v', null, 'knob-top');
-        box(w - 0.06, 0.012, cd - 0.08, mWood, x, 0.5, cz - 0.02, null, false);
-        // contents seen when open
-        cyl(0.11, 0.11, 0.22, mSteel, x - w / 4, 0.62, cz - 0.05); cyl(0.07, 0.07, 0.2, mRed, x + w / 4, 0.62, cz - 0.05);
-      } else door('base' + i, 'باب خزانة', w - 0.02, ch - 0.14, 0.022, mWoodDoor, x - w / 2 + 0.005, 0.1 + (ch - 0.14) / 2 + 0.03, fz, 'left', 'v', null, 'knob-top');
+      if (kind === 'drawers') {
+        drawer('drawer' + i + 'a', 'درج', w - 0.02, 0.2, 0.5, mWoodDoor, x, 0.78, fz, null, 'rags'); drawer('drawer' + i + 'b', 'درج', w - 0.02, 0.28, 0.5, mWoodDoor, x, 0.55, fz); drawer('drawer' + i + 'c', 'درج', w - 0.02, 0.28, 0.5, mWoodDoor, x, 0.28, fz, null, 'rags');
+      } else {
+        shelf(g, w, cd, -0.02); stock(g, w - 0.04, cd, [-0.37, -0.012], kind === 'plates' ? 'plates' : null);
+        var hw = w / 2 - 0.01, dy = 0.1 + (ch - 0.14) / 2 + 0.03;
+        if (w > 0.7) {
+          door('base' + i + 'L', 'باب خزانة', hw, ch - 0.14, 0.022, mWoodDoor, x - w / 2 + 0.005, dy, fz, 'left', 'v', null, 'knob-top', o.ajarL ? { ajar: o.ajarL, tilt: o.tiltL } : null);
+          if (!o.missingR) door('base' + i + 'R', 'باب خزانة', hw, ch - 0.14, 0.022, mWoodDoor, x + w / 2 - 0.005, dy, fz, 'right', 'v', null, 'knob-top');
+        } else door('base' + i, 'باب خزانة', w - 0.02, ch - 0.14, 0.022, mWoodDoor, x - w / 2 + 0.005, dy, fz, 'left', 'v', null, 'knob-top');
+      }
+      return g;
     }
-    var x0 = fr.x + fr.w / 2; // = -2.6+0.85
-    var cx = -W / 2 + 0.85;
+    var cx = -W / 2;
+    baseCab(cx + 0.4, 0.8, 0, 'plates', { ajarL: 0.25 }); cx += 0.8;
     baseCab(cx + 0.3, 0.6, 1, 'drawers'); cx += 0.6;
-    // stove (width 0.6)
+    // stove (width 0.6), hollow body with a real oven cavity
     var sx = cx + 0.3; cx += 0.6;
     (function () {
-      var g = new THREE.Group(); g.position.set(sx, 0, cz); group.add(g);
-      box(0.6, 0.86, cd, mEnamel, 0, 0.43, 0, g); solid(sx - 0.3, sx + 0.3, bz, bz + cd);
-      box(0.6, 0.03, cd, mBlack, 0, 0.875, 0, g);
-      box(0.6, 0.18, 0.04, mEnamel, 0, 1.0, -cd / 2 + 0.02, g); // back panel
+      var g = new THREE.Group(); g.position.set(sx, 0, cz); group.add(g); solid(sx - 0.3, sx + 0.3, bz, bz + cd);
+      var t = 0.02;
+      box(t, 0.86, cd, mStove, -0.3 + t / 2, 0.43, 0, g); box(t, 0.86, cd, mStove, 0.3 - t / 2, 0.43, 0, g); box(0.56, 0.86, t, mStove, 0, 0.43, -cd / 2 + t / 2, g);
+      box(0.56, 0.02, cd - 0.02, mStove, 0, 0.11, 0, g); box(0.6, 0.03, cd, mBlack, 0, 0.875, 0, g);
+      box(0.6, 0.22, t, mStove, 0, 0.75, cd / 2 - t / 2, g); box(0.6, 0.1, t, mStove, 0, 0.055, cd / 2 - t / 2, g); [-1, 1].forEach(function (s) { box(0.02, 0.52, t, mStove, s * 0.29, 0.38, cd / 2 - t / 2, g); });
+      box(0.6, 0.18, 0.04, mStove, 0, 1.0, -cd / 2 + 0.02, g);
+      // oven cavity (dark lined) with racks, a tray and burnt food
+      var cav = new THREE.MeshStandardMaterial({ color: 0x1e1812, roughness: 0.9 });
+      box(0.5, 0.45, 0.01, cav, 0, 0.38, -0.25, g, false); box(0.01, 0.45, 0.5, cav, -0.25, 0.38, 0, g, false); box(0.01, 0.45, 0.5, cav, 0.25, 0.38, 0, g, false); box(0.5, 0.01, 0.5, cav, 0, 0.605, 0, g, false); box(0.5, 0.01, 0.5, cav, 0, 0.155, 0, g, false);
+      [0.28, 0.46].forEach(function (y) { box(0.48, 0.008, 0.46, mSteel, y > 0.4 ? 0 : 0, y, 0.0, g, false); for (var k = 0; k < 6; k++) box(0.006, 0.01, 0.46, mSteel, -0.2 + k * 0.08, y + 0.008, 0, g, false); });
+      box(0.4, 0.025, 0.34, mBlack, 0, 0.17, 0.0, g, false); cyl(0.08, 0.08, 0.04, mFood, 0.0, 0.2, 0.0, g, 14); cyl(0.05, 0.05, 0.03, mBlack, -0.12, 0.485, 0.0, g, 10);
       [[-0.14, 0.14], [0.14, 0.14], [-0.14, -0.12], [0.14, -0.12]].forEach(function (p, i) {
-        var s = i === 0 ? 0.062 : 0.045;
-        cyl(s, s, 0.02, mSteel, p[0], 0.9, p[1], g, 24); cyl(s * 0.6, s * 0.6, 0.012, mBlack, p[0], 0.915, p[1], g, 24);
-        for (var k = 0; k < 8; k++) { var a = k / 8 * 6.283; var f = box(0.008, 0.01, 0.02, mBlack, p[0] + Math.cos(a) * s * 1.1, 0.92, p[1] + Math.sin(a) * s * 1.1, g, false); f.rotation.y = -a; }
-        var gr = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.006, 6, 16), mBlack); gr.rotation.x = Math.PI / 2; gr.position.set(p[0], 0.93, p[1]); g.add(gr);
+        var s = i === 0 ? 0.062 : 0.045; cyl(s, s, 0.02, mSteel, p[0], 0.9, p[1], g, 20); cyl(s * 0.6, s * 0.6, 0.012, mBlack, p[0], 0.915, p[1], g, 20);
+        var gr = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.006, 6, 14), mBlack); gr.rotation.x = Math.PI / 2; gr.position.set(p[0], 0.93, p[1]); g.add(gr);
       });
-      // grates bars
-      [-0.14, 0.14].forEach(function (x) { box(0.012, 0.012, 0.44, mBlack, x, 0.935, 0.01, g, false); });
-      [0.14, -0.12].forEach(function (z) { box(0.5, 0.012, 0.012, mBlack, 0, 0.935, z, g, false); });
-      // knobs
-      for (var i = 0; i < 5; i++) { var kn = cyl(0.022, 0.026, 0.03, mBlack, -0.22 + i * 0.11, 0.78, cd / 2 + 0.015, g, 14); kn.rotation.x = Math.PI / 2; box(0.004, 0.02, 0.004, mHandle, -0.22 + i * 0.11, 0.78 + 0.0, cd / 2 + 0.033, g, false); }
-      // oven door: hinged at the bottom edge, opens downward
-      var oit = door('oven', 'باب الفرن', 0.56, 0.52, 0.04, mEnamel, 0, 0.1 + 0.02, cd / 2 + 0.02, 'left', 'h', g), omesh = oit.mesh;
-      box(0.38, 0.28, 0.01, mGlass, 0, -0.02, 0.025, omesh, false); bar(0.46, 0, 0.21, 0.065, omesh);
-      var oc = box(0.5, 0.45, 0.4, new THREE.MeshStandardMaterial({ color: 0x1f1f20, roughness: 0.6 }), 0, 0.33, 0.0, g, false); oc.position.z = 0.0;
-      box(0.5, 0.01, 0.38, mSteel, 0, 0.28, 0.0, g, false); box(0.5, 0.01, 0.38, mSteel, 0, 0.42, 0.0, g, false);
-      // pot on a burner
-      cyl(0.095, 0.085, 0.12, mSteel, -0.14, 1.0, 0.14, g, 24); cyl(0.098, 0.098, 0.012, mSteel, -0.14, 1.065, 0.14, g, 24); box(0.07, 0.015, 0.018, mBlack, -0.27, 1.065, 0.14, g);
+      [-0.14, 0.14].forEach(function (x) { box(0.012, 0.012, 0.44, mBlack, x, 0.935, 0.01, g, false); }); [0.14, -0.12].forEach(function (z) { box(0.5, 0.012, 0.012, mBlack, 0, 0.935, z, g, false); });
+      for (var i = 0; i < 5; i++) { var kn = cyl(0.022, 0.026, 0.03, mBlack, -0.22 + i * 0.11, 0.76, cd / 2 + 0.015, g, 12); kn.rotation.x = Math.PI / 2; }
+      var oit = door('oven', 'باب الفرن', 0.56, 0.52, 0.04, mStove, 0, 0.12, cd / 2 + 0.02, 'left', 'h', g), om = oit.mesh;
+      box(0.38, 0.28, 0.01, mGlass, 0, -0.02, 0.025, om, false); bar(0.46, 0, 0.21, 0.065, om);
+      pot(g, -0.14, 0.89, 0.14, 0.09); box(0.07, 0.015, 0.018, mBlack, -0.27, 1.06, 0.14, g);
     })();
     // gas cylinder beside the stove
-    (function () { var gx = cx + 0.22; cyl(0.15, 0.15, 0.48, mRed, gx, 0.24, bz + 0.2); cyl(0.15, 0.15, 0.05, mRed, gx, 0.5, bz + 0.2).scale.set(1, 0.6, 1); cyl(0.03, 0.03, 0.08, mHandle, gx, 0.58, bz + 0.2); solid(gx - 0.16, gx + 0.16, bz, bz + 0.4); cx += 0.5; })();
+    (function () { var gx = cx + 0.22; cyl(0.15, 0.15, 0.48, mRed, gx, 0.24, bz + 0.2, null, 20); cyl(0.09, 0.15, 0.05, mRed, gx, 0.5, bz + 0.2, null, 20); cyl(0.03, 0.03, 0.08, mHandle, gx, 0.56, bz + 0.2); solid(gx - 0.16, gx + 0.16, bz, bz + 0.4); cx += 0.5; })();
     baseCab(cx + 0.3, 0.6, 2); cx += 0.6;
-    // sink cabinet (width 0.9)
-    var skx = cx + 0.45; baseCab(skx, 0.9, 3); cx += 0.9;
+    var skx = cx + 0.45; baseCab(skx, 0.9, 3, null, { ajarL: 0.5, tiltL: 0.04 }); cx += 0.9;
     baseCab(cx + 0.3, 0.6, 4, 'drawers'); cx += 0.6;
-    var endX = cx; // right end of cabinets
-    // counter top: left of stove, right of stove, with a gap for the stove
-    var topY = 0.86 + 0.02;
+    var endX = cx, topY = 0.86 + 0.02;
     function counter(x1, x2) { if (x2 - x1 > 0.01) box(x2 - x1, 0.04, cd + 0.03, mTop, (x1 + x2) / 2, topY, cz + 0.015); }
-    counter(-W / 2 + 0.85, sx - 0.3); counter(sx + 0.3, endX);
-    // sink basin (dark steel inset) and tap
+    counter(-W / 2, sx - 0.3); counter(sx + 0.3, endX);
     box(0.6, 0.012, 0.4, mSteel, skx, topY + 0.022, cz + 0.02, null, false); box(0.54, 0.014, 0.34, mBlack, skx, topY + 0.03, cz + 0.02, null, false);
     cyl(0.018, 0.02, 0.28, mHandle, skx + 0.28, topY + 0.16, bz + 0.1); var sp = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.013, 8, 16, Math.PI), mHandle); sp.position.set(skx + 0.18, topY + 0.3, bz + 0.1); group.add(sp);
-    cyl(0.015, 0.015, 0.1, mHandle, skx + 0.08, topY + 0.25, bz + 0.1).position.x = skx + 0.08;
+    // dirty dishes piled in the sink, and clutter on the counter
+    plates(group, skx - 0.05, topY + 0.03, cz + 0.02, 5, 0.1); pot(group, skx + 0.12, topY + 0.03, cz + 0.05, 0.07); rag(group, -2.1, topY + 0.02, cz); bottle(group, -1.8, topY + 0.02, cz - 0.08, 1); can(group, -1.7, topY + 0.02, cz, 3); can(group, -1.64, topY + 0.02, cz - 0.05, 5); boxItem(group, 1.7, topY + 0.02, cz, 0.12, 0.2, 0.08, 1);
 
-    // ---------- upper cabinets and shelves ----------
-    function upperCab(x, w, i) {
-      var uz = bz + 0.18, uy = 1.88, uh = 0.7;
-      box(w, uh, 0.36, mWood, x, uy, uz); solid(x - w / 2, x + w / 2, bz, bz + 0.36);
-      var fz = uz + 0.19;
-      var hw = w / 2 - 0.005;
-      door('up' + i + 'L', 'باب علوي', hw, uh - 0.04, 0.02, mWoodDoor, x - w / 2 + 0.005, uy, fz, 'left', 'v', null, 'knob-bot');
+    // ---------- upper cabinets (hollow, stocked), one door hanging off its hinge ----------
+    function upperCab(x, w, i, o) {
+      o = o || {}; var uy = 1.88, uh = 0.7, uz = bz + 0.18, g = carcass(null, w, uh, 0.36, mCarc, x, uy, uz); solid(x - w / 2, x + w / 2, bz, bz + 0.36);
+      shelf(g, w, 0.36, 0.0); stock(g, w - 0.04, 0.36, [-uh / 2 + 0.02, 0.008], 'plates');
+      var fz = uz + 0.19, hw = w / 2 - 0.005;
+      door('up' + i + 'L', 'باب علوي', hw, uh - 0.04, 0.02, mWoodDoor, x - w / 2 + 0.005, uy, fz, 'left', 'v', null, 'knob-bot', o.ajarL ? { ajar: o.ajarL, tilt: o.tiltL } : null);
       door('up' + i + 'R', 'باب علوي', hw, uh - 0.04, 0.02, mWoodDoor, x + w / 2 - 0.005, uy, fz, 'right', 'v', null, 'knob-bot');
-      box(w - 0.04, 0.012, 0.3, mWood, x, uy, uz, null, false);
-      cyl(0.04, 0.04, 0.12, mEnamel, x - w / 4, uy + 0.07, uz); cyl(0.05, 0.05, 0.14, mEnamel, x + w / 5, uy - 0.28, uz);
     }
-    upperCab(-1.55, 0.8, 1); upperCab(1.0, 0.9, 2);
-    // range hood above the stove
-    (function () { box(0.6, 0.1, 0.46, mSteel, sx, 2.05, bz + 0.25); var c = box(0.28, 0.5, 0.2, mSteel, sx, 2.4, bz + 0.12); box(0.4, 0.03, 0.3, mBlack, sx, 1.99, bz + 0.26, null, false); })();
-    // right of the sink: open shelf with jars
+    upperCab(-2.15, 0.8, 0); upperCab(-1.25, 0.8, 1, { ajarL: 0.9, tiltL: 0.16 }); upperCab(1.0, 0.9, 2);
+    (function () { box(0.6, 0.1, 0.46, mSteel, sx, 2.05, bz + 0.25); box(0.28, 0.5, 0.2, mSteel, sx, 2.4, bz + 0.12); box(0.4, 0.03, 0.3, mBlack, sx, 1.99, bz + 0.26, null, false); })();
     (function () { var x = 1.78; box(0.55, 0.035, 0.26, mWood, x, 1.62, bz + 0.13); box(0.55, 0.035, 0.26, mWood, x, 2.05, bz + 0.13);
-      for (var i = 0; i < 3; i++) { cyl(0.05, 0.05, 0.14, new THREE.MeshStandardMaterial({ color: [0x7a5a2a, 0x556644, 0x6a3a3a][i], roughness: 0.3 }), x - 0.18 + i * 0.18, 1.7, bz + 0.13); }
-      [0, 1, 2].forEach(function (i) { cyl(0.1, 0.1, 0.012, mEnamel, x, 2.075 + i * 0.014, bz + 0.13); }); })();
+      jar(group, x - 0.15, 1.64, bz + 0.13); can(group, x, 1.64, bz + 0.13, 2); bottle(group, x + 0.17, 1.64, bz + 0.13, 0); plates(group, x, 2.07, bz + 0.13, 4); })();
 
     // ---------- left wall: open shelves, hanging pans ----------
     var lz = -W / 2;
     (function () {
-      [0.9, 1.4, 1.9].forEach(function (y, j) { box(0.3, 0.04, 1.7, mWood, lz + 0.15, y, 0.1); [-0.6, 0.8].forEach(function (z) { box(0.04, 0.2, 0.02, mTrim, lz + 0.03, y - 0.1, z, null, false); }); });
-      // shelf contents
-      for (var i = 0; i < 6; i++) cyl(0.05, 0.05, 0.16, new THREE.MeshStandardMaterial({ color: [0x887755, 0x995533, 0x667755, 0xbbaa88, 0x774444, 0x556677][i], roughness: 0.35 }), lz + 0.13, 0.99, -0.65 + i * 0.12);
-      for (var j = 0; j < 4; j++) box(0.16, 0.14, 0.14, new THREE.MeshStandardMaterial({ color: 0xaa9a7a, roughness: 0.6 }), lz + 0.16, 1.49, -0.6 + j * 0.2);
-      for (var k = 0; k < 5; k++) { cyl(0.1, 0.1, 0.012, mEnamel, lz + 0.15, 1.928 + k * 0.014, 0.25); }
+      [0.9, 1.4, 1.9].forEach(function (y) { box(0.3, 0.04, 1.7, mWood, lz + 0.15, y, 0.1); [-0.6, 0.8].forEach(function (z) { box(0.04, 0.2, 0.02, mTrim, lz + 0.03, y - 0.1, z, null, false); }); });
+      var sg = new THREE.Group(); sg.position.set(lz + 0.15, 0, 0.1); sg.rotation.y = 0; group.add(sg);
+      var r = rnd(321); [0.92, 1.42, 1.92].forEach(function (y, si) { for (var k = 0; k < 7; k++) { var z = -0.7 + k * 0.23, t = (k + si) % 5; if (t === 0) jar(sg, 0, y + 0.0, z); else if (t === 1) can(sg, 0, y, z, k + si); else if (t === 2) bottle(sg, 0, y, z, k); else if (t === 3) boxItem(sg, 0, y, z, 0.1, 0.16, 0.08, k); else plates(sg, 0, y, z, 3, 0.09); } });
       solid(lz, lz + 0.32, -0.8, 0.9);
-      // hanging rail with pans
       var rail = cyl(0.01, 0.01, 1.0, mHandle, lz + 0.08, 1.62, -1.45); rail.rotation.x = Math.PI / 2;
       [-0.3, 0, 0.3].forEach(function (z, i) { var pan = cyl(0.1 + i * 0.01, 0.09, 0.025, mBlack, lz + 0.1, 1.44, -1.45 + z); pan.rotation.z = Math.PI / 2; box(0.01, 0.2, 0.02, mBlack, lz + 0.09, 1.56, -1.45 + z, null, false); });
     })();
 
-    // ---------- right wall: window with night sky, table ----------
+    // ---------- right wall: window, table ----------
     (function () {
       var rx = W / 2;
       var win = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.9), new THREE.MeshBasicMaterial({ color: 0x0a1020 })); win.position.set(rx - 0.012, 1.55, -0.2); win.rotation.y = -Math.PI / 2; group.add(win);
-            box(0.06, 0.05, 1.3, mTrim, rx - 0.05, 1.04, -0.2); box(0.04, 1.0, 0.05, mTrim, rx - 0.025, 1.55, -0.2); box(0.04, 0.05, 1.2, mTrim, rx - 0.025, 1.55, -0.2);
+      box(0.06, 0.05, 1.3, mTrim, rx - 0.05, 1.04, -0.2); box(0.04, 1.0, 0.05, mTrim, rx - 0.025, 1.55, -0.2); box(0.04, 0.05, 1.2, mTrim, rx - 0.025, 1.55, -0.2);
       box(0.05, 0.9, 0.05, mTrim, rx - 0.025, 1.55, -0.78); box(0.05, 0.9, 0.05, mTrim, rx - 0.025, 1.55, 0.38);
-      for (var i = 0; i < 18; i++) { var s = new THREE.Mesh(new THREE.SphereGeometry(0.008, 4, 4), new THREE.MeshBasicMaterial({ color: 0xcfd8ff })); s.position.set(rx - 0.02, 1.15 + Math.random() * 0.85, -0.7 + Math.random() * 1.0); group.add(s); }
-      // curtain
-      box(0.04, 1.05, 0.28, new THREE.MeshStandardMaterial({ color: 0x3a1818, roughness: 0.95, side: THREE.DoubleSide }), rx - 0.08, 1.55, -0.78); 
-      // kitchen table with two chairs
-      var tg = new THREE.Group(); tg.position.set(1.2, 0, 0.5); group.add(tg);
+      var cur = new THREE.MeshStandardMaterial({ color: 0x2e1414, roughness: 0.95, side: THREE.DoubleSide }); box(0.04, 1.05, 0.28, cur, rx - 0.08, 1.55, -0.78); box(0.04, 0.7, 0.18, cur, rx - 0.08, 1.7, 0.3);
+      var tg = new THREE.Group(); tg.position.set(1.0, 0, 0.5); group.add(tg);
       box(1.0, 0.05, 0.7, mWood, 0, 0.76, 0, tg); [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]].forEach(function (p) { box(0.05, 0.74, 0.05, mWood, p[0], 0.37, p[1], tg); });
-      solid(1.2 - 0.52, 1.2 + 0.52, 0.5 - 0.37, 0.5 + 0.37);
-      cyl(0.09, 0.07, 0.03, mEnamel, 0.1, 0.8, 0.05, tg); cyl(0.045, 0.04, 0.09, new THREE.MeshStandardMaterial({ color: 0x884422, roughness: 0.3 }), -0.25, 0.84, -0.1, tg);
-      [[-0.2, 0.55, 0], [0.4, -0.55, Math.PI]].forEach(function (c) { var cg = new THREE.Group(); cg.position.set(c[0] + 0.2, 0, c[1]); cg.rotation.y = c[2]; tg.add(cg); box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, cg); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, cg); [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(0.04, 0.45, 0.04, mWood, p[0], 0.22, p[1], cg); }); });
-      solid(1.2 - 0.4, 1.2 + 0.7, 0.5 + 0.3, 0.5 + 0.9);
+      solid(1.0 - 0.52, 1.0 + 0.52, 0.5 - 0.37, 0.5 + 0.37);
+      plates(tg, 0.1, 0.785, 0.05, 2, 0.09); bottle(tg, -0.25, 0.785, -0.1, 1); rag(tg, 0.3, 0.785, 0.1);
+      var c = new THREE.Group(); c.position.set(0.9, 0, 0.62); c.rotation.set(0, 0.6, 0); tg.add(c); // toppled chair
+      box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, c); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, c);
+      var c2 = new THREE.Group(); c2.position.set(-0.2, 0, -0.55); c2.rotation.y = Math.PI; tg.add(c2); box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, c2); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, c2); [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(0.04, 0.45, 0.04, mWood, p[0], 0.22, p[1], c2); });
+      solid(1.0 - 0.45, 1.0 + 0.45, 0.5 + 0.3, 0.5 + 0.95);
     })();
-    // wall clock, pictures, a bin
-    (function () { var c = cyl(0.17, 0.17, 0.03, mEnamel, 0.4, 2.3, bz + 0.02); c.rotation.x = Math.PI / 2; box(0.01, 0.12, 0.01, mBlack, 0.4, 2.33, bz + 0.04, null, false); box(0.08, 0.01, 0.01, mBlack, 0.43, 2.3, bz + 0.04, null, false);
-      var bin = cyl(0.17, 0.14, 0.45, new THREE.MeshStandardMaterial({ color: 0x2a3a2e, roughness: 0.7 }), W / 2 - 0.3, 0.22, bz + 0.35); solid(W / 2 - 0.5, W / 2, bz, bz + 0.55); })();
+    (function () { var c = cyl(0.17, 0.17, 0.03, mPlate, 0.4, 2.3, bz + 0.02); c.rotation.x = Math.PI / 2; box(0.01, 0.12, 0.01, mBlack, 0.4, 2.33, bz + 0.04, null, false); box(0.08, 0.01, 0.01, mBlack, 0.43, 2.3, bz + 0.04, null, false);
+      cyl(0.17, 0.14, 0.45, std(null, { color: 0x1f2a22, rough: 0.7 }), W / 2 - 0.3, 0.22, bz + 0.35); solid(W / 2 - 0.5, W / 2, bz, bz + 0.55); })();
 
-    // ---------- grime, damp and sparse blood: separate transparent decals (the Poly Haven textures stay clean and sharp) ----------
-    function rnd(seed) { var a = seed; return function () { a = (a * 16807) % 2147483647; return a / 2147483647; }; }
-    function decalTex(w, h, paint) { var c = document.createElement('canvas'); c.width = w; c.height = h; var g = c.getContext('2d'); paint(g, w, h); var t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.encoding = THREE.sRGBEncoding; return t; }
+    // ---------- decals: grime, damp, rust, cobwebs, cracks, blood (separate layers, the Poly Haven textures stay sharp) ----------
+    function decalTex(w, h, paint) { return canvasTex(w, h, paint); }
     function decal(tex, w, h, x, y, z, ry, rx, op) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.55, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, opacity: op === undefined ? 1 : op }));
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.6, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, opacity: op === undefined ? 1 : op, side: THREE.DoubleSide }));
       m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0); m.receiveShadow = true; m.renderOrder = 2; group.add(m); return m;
     }
-    // dark grime and damp rising from the floor, blotchy top edge
     var grime = decalTex(1024, 256, function (g, w, h) {
-      var r = rnd(7), gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(8,6,4,0.78)'); gr.addColorStop(0.35, 'rgba(14,10,6,0.45)'); gr.addColorStop(1, 'rgba(14,10,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-      for (var i = 0; i < 90; i++) { var x = r() * w, y = h * (0.2 + r() * 0.6), rad = 10 + r() * 38; var b = g.createRadialGradient(x, y, 0, x, y, rad); b.addColorStop(0, 'rgba(10,8,5,' + (0.12 + r() * 0.2) + ')'); b.addColorStop(1, 'rgba(10,8,5,0)'); g.fillStyle = b; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+      var r = rnd(7), gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(8,6,4,0.8)'); gr.addColorStop(0.35, 'rgba(14,10,6,0.45)'); gr.addColorStop(1, 'rgba(14,10,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      for (var i = 0; i < 90; i++) { var x = r() * w, y = h * (0.2 + r() * 0.6), rad = 10 + r() * 38, b = g.createRadialGradient(x, y, 0, x, y, rad); b.addColorStop(0, 'rgba(10,8,5,' + (0.12 + r() * 0.2) + ')'); b.addColorStop(1, 'rgba(10,8,5,0)'); g.fillStyle = b; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
     });
-    var gh = 0.85;
-    decal(grime, W - 0.02, gh, 0, gh / 2 + 0.1, -D / 2 + 0.006, 0);
-    decal(grime, D - 0.02, gh, -W / 2 + 0.006, gh / 2 + 0.1, 0, Math.PI / 2);
-    decal(grime, D - 0.02, gh, W / 2 - 0.006, gh / 2 + 0.1, 0, -Math.PI / 2);
-    decal(grime, W - 0.02, gh, 0, gh / 2 + 0.1, D / 2 - 0.006, Math.PI);
-    // damp stains / water leaks running down from the ceiling and window
+    var gh = 0.85; decal(grime, W - 0.02, gh, 0, gh / 2 + 0.1, -D / 2 + 0.006, 0); decal(grime, D - 0.02, gh, -W / 2 + 0.006, gh / 2 + 0.1, 0, Math.PI / 2); decal(grime, D - 0.02, gh, W / 2 - 0.006, gh / 2 + 0.1, 0, -Math.PI / 2); decal(grime, W - 0.02, gh, 0, gh / 2 + 0.1, D / 2 - 0.006, Math.PI);
     var leak = decalTex(256, 512, function (g, w, h) {
-      var r = rnd(21); for (var k = 0; k < 4; k++) { var x = w * (0.2 + r() * 0.6), len = h * (0.5 + r() * 0.45); var gr = g.createLinearGradient(0, 0, 0, len); gr.addColorStop(0, 'rgba(40,30,12,0.55)'); gr.addColorStop(1, 'rgba(40,30,12,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(x - 4 - r() * 20, 0); g.lineTo(x + 4 + r() * 20, 0); g.lineTo(x + 3, len); g.lineTo(x - 3, len); g.fill(); }
+      var r = rnd(21); for (var k = 0; k < 4; k++) { var x = w * (0.2 + r() * 0.6), len = h * (0.5 + r() * 0.45), gr = g.createLinearGradient(0, 0, 0, len); gr.addColorStop(0, 'rgba(40,30,12,0.55)'); gr.addColorStop(1, 'rgba(40,30,12,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(x - 4 - r() * 20, 0); g.lineTo(x + 4 + r() * 20, 0); g.lineTo(x + 3, len); g.lineTo(x - 3, len); g.fill(); }
       var b = g.createRadialGradient(w / 2, 20, 0, w / 2, 20, 90); b.addColorStop(0, 'rgba(30,22,8,0.6)'); b.addColorStop(1, 'rgba(30,22,8,0)'); g.fillStyle = b; g.fillRect(0, 0, w, 200);
     });
     decal(leak, 0.9, 1.7, -0.3, H - 0.85, -D / 2 + 0.007, 0, 0, 0.9); decal(leak, 0.8, 1.5, -W / 2 + 0.007, H - 0.8, 1.1, Math.PI / 2, 0, 0.9); decal(leak, 0.7, 1.4, W / 2 - 0.007, H - 0.75, 1.0, -Math.PI / 2, 0, 0.85);
-    // sparse, localized blood: a splatter with drips on the front wall beside the doorway, and a drag smear on the floor
+    // rust run-off below the tap and the stove hood, onto the tiles
+    var rust = decalTex(256, 256, function (g, w, h) { var r = rnd(61); for (var k = 0; k < 7; k++) { var x = w * (0.15 + r() * 0.7), len = h * (0.4 + r() * 0.6), gr = g.createLinearGradient(0, 0, 0, len); gr.addColorStop(0, 'rgba(120,52,16,0.75)'); gr.addColorStop(1, 'rgba(120,52,16,0)'); g.fillStyle = gr; g.fillRect(x - 3 - r() * 6, 0, 6 + r() * 12, len); } });
+    decal(rust, 0.4, 0.6, skx + 0.28, 1.2, bz + 0.012, 0, 0, 0.9); decal(rust, 0.5, 0.5, sx, 1.55, bz + 0.012, 0, 0, 0.8);
+    // cobwebs: spokes and arcs from a corner
+    var web = decalTex(256, 256, function (g, w, h) { g.strokeStyle = 'rgba(225,225,215,0.55)'; g.lineWidth = 1.2; for (var i = 0; i <= 6; i++) { var a = i / 6 * Math.PI / 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 250, Math.sin(a) * 250); g.stroke(); } for (var r = 1; r <= 7; r++) { g.beginPath(); for (var k = 0; k <= 6; k++) { var a2 = k / 6 * Math.PI / 2, rr = r * 34 - (k % 2 ? 6 : 0) + Math.sin(k * 1.3 + r) * 3; var px = Math.cos(a2) * rr, py = Math.sin(a2) * rr; if (k === 0) g.moveTo(px, py); else g.lineTo(px, py); } g.stroke(); } });
+    function cobweb(x, y, z, ry, sx, sy, s) { var m = decal(web, s, s, x, y, z, ry, 0, 0.9); m.scale.set(sx, sy, 1); m.position.x += sx * s / 2 * Math.cos(ry); m.position.z += -sx * s / 2 * Math.sin(ry); m.position.y += sy * -s / 2; return m; }
+    cobweb(-W / 2 + 0.01, H - 0.01, bz + 0.012, 0, 1, 1, 0.9); cobweb(W / 2 - 0.01, H - 0.01, bz + 0.012, 0, -1, 1, 0.8); cobweb(-W / 2 + 0.012, H - 0.01, bz + 0.01, Math.PI / 2, -1, 1, 0.7);
+    cobweb(-1.65, 2.23, bz + 0.37, 0, 1, 1, 0.35); cobweb(W / 2 - 0.01, H - 0.01, D / 2 - 0.012, Math.PI, 1, 1, 0.85); cobweb(-W / 2 + 0.014, 1.95, 0.9, Math.PI / 2, 1, 1, 0.3);
+    // cracked floor tiles
+    var crack = decalTex(512, 512, function (g, w, h) { var r = rnd(77); g.strokeStyle = 'rgba(10,8,6,0.9)'; g.lineWidth = 2.2; function seg(x, y, a, n) { g.beginPath(); g.moveTo(x, y); for (var i = 0; i < n; i++) { a += (r() - 0.5) * 0.9; x += Math.cos(a) * (14 + r() * 24); y += Math.sin(a) * (14 + r() * 24); g.lineTo(x, y); if (r() < 0.22) seg(x, y, a + (r() < 0.5 ? 1 : -1), 4 + Math.floor(r() * 4)); } g.stroke(); } seg(260, 40, 1.5, 14); seg(120, 300, 0.4, 9); });
+    decal(crack, 1.2, 1.2, 0.2, 0.003, 1.0, 0, -Math.PI / 2, 0.9); decal(crack, 1.0, 1.0, -1.6, 0.003, 0.2, 0, -Math.PI / 2, 0.9);
+    // cracked window pane
+    var wc = decalTex(256, 256, function (g, w, h) { g.strokeStyle = 'rgba(210,225,255,0.75)'; g.lineWidth = 1.5; var cx2 = 140, cy2 = 110, r = rnd(5); for (var i = 0; i < 9; i++) { var a = i / 9 * 6.283 + r() * 0.3, x = cx2, y = cy2; g.beginPath(); g.moveTo(x, y); for (var k = 0; k < 5; k++) { a += (r() - 0.5) * 0.4; x += Math.cos(a) * 28; y += Math.sin(a) * 28; g.lineTo(x, y); } g.stroke(); } });
+    decal(wc, 1.1, 0.9, W / 2 - 0.016, 1.55, -0.2, -Math.PI / 2, 0, 0.9);
+    // sparse blood: splatter with drips on the front wall left of the door, and a drag smear on the floor
     var blood = decalTex(512, 512, function (g, w, h) {
       var r = rnd(99); g.fillStyle = 'rgba(88,6,6,0.92)';
       for (var i = 0; i < 26; i++) { var a = r() * 6.283, d = r() * 120, x = w / 2 + Math.cos(a) * d, y = 160 + Math.sin(a) * d * 0.7, rad = 3 + r() * (d < 40 ? 22 : 9); g.beginPath(); g.arc(x, y, rad, 0, 6.283); g.fill(); }
@@ -274,28 +342,27 @@
     });
     decal(blood, 0.8, 0.8, -2.1, 1.5, D / 2 - 0.007, Math.PI, 0, 1);
     var smear = decalTex(256, 512, function (g, w, h) {
-      var r = rnd(5); g.fillStyle = 'rgba(80,5,5,0.85)'; for (var i = 0; i < 40; i++) { var t = i / 40, x = w * (0.35 + 0.3 * Math.sin(t * 3) ), y = h * (0.05 + 0.9 * t), rad = 12 + r() * 14 - t * 6; g.beginPath(); g.ellipse(x + (r() - 0.5) * 14, y, rad, rad * 1.4, 0, 0, 6.283); g.fill(); }
+      var r = rnd(5); g.fillStyle = 'rgba(80,5,5,0.85)'; for (var i = 0; i < 40; i++) { var t = i / 40, x = w * (0.35 + 0.3 * Math.sin(t * 3)), y = h * (0.05 + 0.9 * t), rad = 12 + r() * 14 - t * 6; g.beginPath(); g.ellipse(x + (r() - 0.5) * 14, y, rad, rad * 1.4, 0, 0, 6.283); g.fill(); }
       for (var k = 0; k < 10; k++) { g.beginPath(); g.arc(w * r(), h * r(), 2 + r() * 6, 0, 6.283); g.fill(); }
     });
     decal(smear, 0.5, 1.5, -0.8, 0.004, 1.3, 0, -Math.PI / 2, 0.9).rotation.z = 0.3;
 
-    // ---------- lights ----------
+    // ---------- lights (one shadow-casting light only, for performance) ----------
     var fl = new THREE.Group(); group.add(fl);
-    box(1.2, 0.05, 0.2, new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.6 }), 0, H - 0.03, 0.0, fl, false);
+    box(1.2, 0.05, 0.2, new THREE.MeshStandardMaterial({ color: 0x555048, roughness: 0.7 }), 0, H - 0.03, 0.0, fl, false);
     var tube = box(1.1, 0.025, 0.1, new THREE.MeshBasicMaterial({ color: 0xe8f2ff }), 0, H - 0.062, 0, fl, false);
-    var lamp = new THREE.PointLight(0xdfeaff, 0.75, 9, 1.8); lamp.position.set(0, H - 0.25, 0.1); lamp.castShadow = true; lamp.shadow.mapSize.set(q === '1k' ? 512 : 1024, q === '1k' ? 512 : 1024); lamp.shadow.bias = -0.0008; group.add(lamp);
-    var fill = new THREE.PointLight(0xffd9a8, 0.06, 7, 2); fill.position.set(0.8, 1.7, 1.2); group.add(fill);
+    var lamp = new THREE.PointLight(0xdfe8d0, 0.7, 9, 1.8); lamp.position.set(0, H - 0.25, 0.1); lamp.castShadow = true; lamp.shadow.mapSize.set(q === '1k' ? 512 : 1024, q === '1k' ? 512 : 1024); lamp.shadow.bias = -0.0008; group.add(lamp);
     var moon = new THREE.DirectionalLight(0x6f86c8, 0.3); moon.position.set(W / 2 + 2, 3, -0.2); moon.target.position.set(0, 0.5, 0); group.add(moon, moon.target);
     var hemi = new THREE.HemisphereLight(0x6a7490, 0x1a1512, 0.1); group.add(hemi);
     var under = new THREE.PointLight(0xffe6c0, 0.12, 2.5, 2); under.position.set(sx, 1.5, bz + 0.3); group.add(under);
-    var ft = 0, burst = 0;
+    var burst = 0, gap = 2;
     flick.push(function (dt) {
-      ft += dt; var v = 1;
-      if (burst > 0) { burst -= dt; v = Math.random() < 0.5 ? 0.15 : 0.9; } else if (Math.random() < dt * 0.25) burst = 0.25 + Math.random() * 0.4;
-      lamp.intensity = 0.75 * v; tube.material.color.setScalar(0.35 + 0.65 * v).multiply(new THREE.Color(0.9, 0.95, 1));
+      var v = 1; gap -= dt;
+      if (burst > 0) { burst -= dt; v = Math.random() < 0.5 ? 0.08 : 0.9; if (burst <= 0) gap = 1.5 + Math.random() * 5; } else if (gap <= 0) burst = 0.3 + Math.random() * 0.7;
+      lamp.intensity = 0.7 * v; tube.material.color.setScalar(0.3 + 0.7 * v).multiply(new THREE.Color(0.9, 0.95, 1));
     });
 
-    // environment map for realistic reflections (generated, no download)
+    // generated environment map for reflections (no download)
     if (opt.renderer && THREE.PMREMGenerator) {
       var es = new THREE.Scene(); es.background = new THREE.Color(0x1b1d24);
       var eb = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 6), new THREE.MeshBasicMaterial({ color: 0xffffff })); eb.position.set(0, 3, 0); es.add(eb);
@@ -305,12 +372,11 @@
 
     // ---------- API ----------
     function byName(n) { for (var i = 0; i < interactives.length; i++) if (interactives[i].name === n) return interactives[i]; return null; }
-    function setOpen(n, v) { var it = byName(n); if (it) it.open = v; }
     function update(dt) {
       for (var i = 0; i < interactives.length; i++) {
         var it = interactives[i], goal = it.open ? 1 : 0; it.t += (goal - it.t) * Math.min(1, dt * 6);
         if (Math.abs(goal - it.t) < 0.001) it.t = goal; var e = it.t * it.t * (3 - 2 * it.t);
-        if (it.kind === 'v') it.object.rotation.y = it.target * e; else if (it.kind === 'h') it.object.rotation.x = it.target * e; else it.object.position.z = it.base + it.target * e;
+        if (it.kind === 'v') it.object.rotation.y = it.c + (it.target - it.c) * e; else if (it.kind === 'h') it.object.rotation.x = it.target * e; else it.object.position.z = it.base + it.target * e;
       }
       for (var f = 0; f < flick.length; f++) flick[f](dt);
     }
@@ -323,11 +389,11 @@
     group.traverse(function (o) { if (o.isMesh && o.material && o.material.isMeshStandardMaterial && group.userData.env) o.material.envMap = group.userData.env; });
     return {
       group: group, interactives: interactives, colliders: colliders, update: update, pick: pick,
-      toggle: function (n) { var it = byName(n); if (it) it.open = !it.open; return it; }, open: function (n) { setOpen(n, true); }, close: function (n) { setOpen(n, false); },
+      toggle: function (n) { var it = byName(n); if (it) it.open = !it.open; return it; }, open: function (n) { var it = byName(n); if (it) it.open = true; }, close: function (n) { var it = byName(n); if (it) it.open = false; },
       bounds: { minX: -W / 2 + 0.25, maxX: W / 2 - 0.25, minZ: -D / 2 + 0.25, maxZ: D / 2 + 0.6, height: H },
       spawn: { x: dx, z: D / 2 - 0.5, yaw: Math.PI }, exitDoor: { x: dx, z: D / 2 },
-      size: { w: W, d: D, h: H }, progress: progress, license: 'Textures: Poly Haven, CC0'
+      size: { w: W, d: D, h: H }, progress: progress, license: 'Textures: Poly Haven, CC0', version: '0.2'
     };
   }
-  root.KitchenModule = { build: build, version: '0.1' };
+  root.KitchenModule = { build: build, version: '0.2' };
 })(typeof window !== 'undefined' ? window : this);
