@@ -30,12 +30,14 @@ body.desk .stick,body.desk #act{display:none}
   var cam = new THREE.PerspectiveCamera(70, 1, 0.05, 30); cam.rotation.order = 'YXZ';
   var K = KitchenModule.build(THREE, { quality: q, renderer: R, floorTexSize: P.get('floor') ? +P.get('floor') : undefined, onProgress: function (d, t) { document.getElementById('lb').style.width = (100 * d / t) + '%'; } });
   scene.add(K.group);
+  var torch = new THREE.SpotLight(0xfff0d0, 1.6, 8, 0.5, 0.65, 2); torch.position.set(0.1, -0.1, 0); torch.target.position.set(0, 0, -1); cam.add(torch, torch.target); scene.add(cam); // flashlight, F toggles
+  function audioOn() { K.enableAudio(); } addEventListener('pointerdown', audioOn, { once: true }); addEventListener('keydown', audioOn, { once: true });
   var st = { x: K.spawn.x, z: K.spawn.z, yaw: Math.PI * 0 + 0, pitch: -0.05 }; st.yaw = 0; // looks toward -z (the cabinets)
   var keys = {}, joy = { x: 0, y: 0 }, lookId = null, last = null, tapStart = null;
   function resize() { R.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
   addEventListener('resize', resize); resize();
   if (!('ontouchstart' in window)) document.body.classList.add('desk');
-  addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyE') interact(); }); addEventListener('keyup', function (e) { keys[e.code] = 0; });
+  addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyE') interact(); if (e.code === 'KeyF') torch.visible = !torch.visible; }); addEventListener('keyup', function (e) { keys[e.code] = 0; });
   // look: drag on the right 60% of the screen; click/tap without moving = interact at that point
   var ray = new THREE.Raycaster(), v2 = new THREE.Vector2();
   function pickAt(cx, cy) { v2.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(v2, cam); return K.pick(ray, 2.6); }
@@ -60,7 +62,7 @@ body.desk .stick,body.desk #act{display:none}
     var sp = 1.7 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp;
     var a = collide(st.x + dx, st.z); if (a) st.x = a[0]; var b = collide(st.x, st.z + dz); if (b) st.z = b[1];
     cam.position.set(st.x, 1.6 + Math.sin(t / 380) * 0.0, st.z); cam.rotation.set(st.pitch, st.yaw, 0);
-    K.update(dt); var it = pickAt(innerWidth / 2, innerHeight / 2); document.getElementById('lab').textContent = it ? (it.open ? 'إغلاق: ' : 'فتح: ') + it.label : '';
+    K.setCamera(st.x, st.z); K.update(dt); var it = pickAt(innerWidth / 2, innerHeight / 2); document.getElementById('lab').textContent = it ? (it.open ? 'إغلاق: ' : 'فتح: ') + it.label : '';
     R.render(scene, cam); frame.n = (frame.n || 0) + 1;
   }
   // debug / screenshot hooks
