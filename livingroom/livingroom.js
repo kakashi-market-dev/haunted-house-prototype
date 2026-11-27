@@ -6,6 +6,7 @@
  *   B.use(interactive)           // what a tap / E press does: opens doors and drawers, switches the TV
  *   B.interactives, B.pick(raycaster, maxDist), B.colliders, B.bounds, B.spawn {x,z,yaw}, B.setCamera(x,z)
  *   B.audio.start()              // from a user gesture; procedural sound, no files: room tone, clock, heartbeat (when scared), creaks, whispers, bell, footsteps
+ * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
  * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0): damaged_plaster (upper walls, ceiling), dark_wood (floor, wainscot).  Everything else is generated in code.
  */
@@ -24,6 +25,7 @@
 
   function build(THREE, opt) {
     opt = opt || {};
+    var FIG = opt.figures === true;   // human-like figures (dolls, portraits, flicker figure, visitor) are OFF unless { figures: true }
     var q = opt.quality || '2k'; if (opt.floorTexSize) TEX.floor.size = opt.floorTexSize; if (opt.wallTexSize) TEX.wall.size = opt.wallTexSize; 
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 4;
     var group = new THREE.Group(); group.name = 'livingroom';
@@ -181,11 +183,11 @@
     door('door2', 'باب الممر', 0.88, dh, 0.045, mDoorM, 1.6 + 0.44, dh / 2, 0.02, 'right', 'v', wR, 'bar-v', { ajar: 0.12 });
     box(1.0, 2.2, 0.05, mBlack, 1.6, 1.1, -0.2, wR, false); // dark hallway behind the ajar door
     var bz = -D / 2;
-    function doll(x, y, z, ry, tilt, parent) { var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; (parent || group).add(g); var mD = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDr = fabric(73, '#5a4a52');
+    function doll(x, y, z, ry, tilt, parent) { if (!FIG) return new THREE.Group(); var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; (parent || group).add(g); var mD = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDr = fabric(73, '#5a4a52');
       var body = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.2, 10), mDr); body.position.y = 0.1; g.add(body);
       var head = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 12), mD); head.position.y = 0.26; head.rotation.z = tilt; g.add(head);
       [-0.022, 0.022].forEach(function (ex) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), mDark); e.position.set(ex, 0.012, 0.052); head.add(e); }); return g; }
-    function pic(par, x, y, w, h, seed, rot, z) { var t = canvasTex(96, 128, function (c, ww, hh) { var r = rnd(seed); c.fillStyle = '#8a7e62'; c.fillRect(0, 0, ww, hh); for (var i = 0; i < 30; i++) { c.fillStyle = 'rgba(' + (30 + r() * 40 | 0) + ',' + (25 + r() * 30 | 0) + ',20,0.35)'; c.fillRect(r() * ww, r() * hh, 10 + r() * 30, 8 + r() * 25); } c.fillStyle = 'rgba(25,18,12,0.75)'; c.beginPath(); c.arc(48, 52, 17, 0, 6.283); c.fill(); c.fillRect(31, 66, 34, 60); }); var f = box(w + 0.06, h + 0.06, 0.03, mTrim, x, y, z, par, false); f.rotation.z = rot; var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); p.position.set(0, 0, 0.017); f.add(p); return f; }
+    function pic(par, x, y, w, h, seed, rot, z) { var t = canvasTex(96, 128, function (c, ww, hh) { var r = rnd(seed); c.fillStyle = '#8a7e62'; c.fillRect(0, 0, ww, hh); for (var i = 0; i < 30; i++) { c.fillStyle = 'rgba(' + (30 + r() * 40 | 0) + ',' + (25 + r() * 30 | 0) + ',20,0.35)'; c.fillRect(r() * ww, r() * hh, 10 + r() * 30, 8 + r() * 25); } if (FIG) { c.fillStyle = 'rgba(25,18,12,0.75)'; c.beginPath(); c.arc(48, 52, 17, 0, 6.283); c.fill(); c.fillRect(31, 66, 34, 60); } }); var f = box(w + 0.06, h + 0.06, 0.03, mTrim, x, y, z, par, false); f.rotation.z = rot; var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); p.position.set(0, 0, 0.017); f.add(p); return f; }
 
     // ---------- sofa and armchair (front = local +z) ----------
     function seat(x, z, ry, w, mat, name) {
@@ -307,7 +309,7 @@
     // ---------- TV: static, with a dark figure that flickers in and out when it turns itself on ----------
     var tvOn = false, tvFlash = 0, tvAuto = 35 + Math.random() * 20, tvAutoLeft = 0, tvAcc = 0, T = 0, burst = 0, dipGap = 12, dip = 0, fdark = 0;
     function tvDraw() {
-      var w = 96, h = 72, id = tvCtx.createImageData(w, h), d = id.data, fig = tvOn && (T % 7 > 5.2 || tvAutoLeft > 0 && T % 3 > 1.6), v;
+      var w = 96, h = 72, id = tvCtx.createImageData(w, h), d = id.data, fig = FIG && tvOn && (T % 7 > 5.2 || tvAutoLeft > 0 && T % 3 > 1.6), v;
       for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) { v = 60 + Math.random() * 150; if (fig) { var dxp = x - 48, inb = (Math.abs(dxp) < 9 && y > 26 && y < 68) || (dxp * dxp + (y - 20) * (y - 20) < 70); if (inb) v = 8; } var i = (y * w + x) * 4; d[i] = v; d[i + 1] = v; d[i + 2] = v * 1.05; d[i + 3] = 255; }
       tvCtx.putImageData(id, 0, 0); tvTex.needsUpdate = true;
     }
