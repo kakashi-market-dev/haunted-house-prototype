@@ -9,6 +9,7 @@
  *   K.pick(raycaster)  -> interactive under the ray (or null);  K.colliders -> AABBs [{minX,maxX,minZ,maxZ}] for player collision
  *   K.bounds  -> {minX,maxX,minZ,maxZ,height}; K.spawn -> {x,z,yaw} suggested player start; K.exitDoor -> {x,z} doorway centre
  * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
+ * Option wallClock: true -> pale round wall clock above the shelves (default off, it read as a face).
  * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0) for floor/walls/tiles/wood, loaded lazily from dl.polyhaven.org; plain colours until they arrive or if offline.
  * Fixtures (fridge, stove, rusty steel, grime, cobwebs, cracks, blood) are drawn procedurally in canvases, nothing else is downloaded.
@@ -311,7 +312,7 @@
       var c2 = new THREE.Group(); c2.position.set(-0.2, 0, -0.55); c2.rotation.y = Math.PI; tg.add(c2); box(0.42, 0.04, 0.42, mWood, 0, 0.45, 0, c2); box(0.42, 0.45, 0.04, mWood, 0, 0.7, -0.19, c2); [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(0.04, 0.45, 0.04, mWood, p[0], 0.22, p[1], c2); });
       solid(0.0, 0.5, 0.85, 1.35); solid(0.55, 1.05, -0.3, 0.1);
     })();
-    (function () { var c = cyl(0.17, 0.17, 0.03, mPlate, 0.4, 2.3, bz + 0.02); c.rotation.x = Math.PI / 2; box(0.01, 0.12, 0.01, mBlack, 0.4, 2.33, bz + 0.04, null, false); box(0.08, 0.01, 0.01, mBlack, 0.43, 2.3, bz + 0.04, null, false);
+    if (opt.wallClock === true) (function () { var c = cyl(0.17, 0.17, 0.03, mPlate, 0.4, 2.3, bz + 0.02); c.rotation.x = Math.PI / 2; box(0.01, 0.12, 0.01, mBlack, 0.4, 2.33, bz + 0.04, null, false); box(0.08, 0.01, 0.01, mBlack, 0.43, 2.3, bz + 0.04, null, false);
       cyl(0.17, 0.14, 0.45, std(null, { color: 0x1f2a22, rough: 0.7 }), W / 2 - 0.3, 0.22, bz + 0.35); solid(W / 2 - 0.5, W / 2, bz, bz + 0.55); })();
 
     // ---------- decals: grime, damp, rust, cobwebs, cracks, blood (separate layers, the Poly Haven textures stay sharp) ----------
