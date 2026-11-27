@@ -9,6 +9,8 @@
  *   B.setCamera(x, z)           // tell the module where the player is (used for the scare figure and the heartbeat)
  *   B.audio.start()             // call from a user gesture; procedural sound (no audio files): drone, flicker buzz, heartbeat, drips, creaks, stingers
  *   B.audio.setFear(0..1) / B.audio.stinger() / B.audio.creak()
+ * Option lamps: 1 -> single-lamp variant (one ceiling lamp, default keeps the three lamps).
+ * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0) loaded lazily from dl.polyhaven.org: brown_floor_tiles (floor), long_white_tiles (tinted dark grey-green, lower walls), damaged_plaster (upper walls, ceiling), dark_wood.
  * Everything else (tub, toilet, props, grime, cracks, blood, cobwebs) is generated in code.
  */
@@ -152,7 +154,14 @@
     }
 
     // ---------- shared PBR materials (uv scaled in metres so one texture set serves every wall piece) ----------
-    var mFloor = pbr(TEX.floor, 1, 1, 0x8a6a48), mPlaster = pbr(TEX.wall, 1, 1, 0x8d887e), mTile = pbr(TEX.tiles, 1, 1, 0x3e4a42), mCeil = pbr(TEX.ceil, 1, 1, 0x55524c);
+    // checkerboard floor: dirty off-white / near-black cyan, flat colours, one square = opt.checkerSize metres (default 0.5)
+    function checkerMat(surfW, surfH) {
+      var S = opt.checkerSize || 0.5, c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d');
+      g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(256, 0, 256, 256); g.fillRect(0, 256, 256, 256);
+      var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(surfW / (2 * S), surfH / (2 * S)); t.anisotropy = Math.min(16, maxAniso); t.encoding = THREE.sRGBEncoding; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0, envMapIntensity: 0.1 });
+    }
+    var mFloor = checkerMat(1, 1), mPlaster = pbr(TEX.wall, 1, 1, 0x8d887e), mTile = pbr(TEX.tiles, 1, 1, 0x3e4a42), mCeil = pbr(TEX.ceil, 1, 1, 0x55524c);
     var mWood = pbr(TEX.wood, 1, 1, 0x4a3020), mWoodDoor = mWood;
     var mDoorM = std(aged(81, '#35271e', { rust: 0, dark: 1.6 }), { rough: 0.8 });
     var mTub = std(aged(91, '#bdb59c', { rust: 0.9, dark: 1.3 }), { rough: 0.35 });
@@ -316,6 +325,7 @@
     var lampA = new THREE.PointLight(0xcfe0c4, 0.34, 9, 2); lampA.position.set(-1.7, H - 0.3, 0.3); lampA.castShadow = true; lampA.shadow.mapSize.set(shMap, shMap); lampA.shadow.bias = -0.0008; group.add(lampA);
     var lampB = new THREE.PointLight(0xd4e0c8, 0.3, 9, 2); lampB.position.set(1.8, H - 0.3, -0.4); group.add(lampB);
     var lampC = new THREE.PointLight(0xc8d8c8, 0.22, 7, 2); lampC.position.set(-0.2, H - 0.3, 1.9); group.add(lampC);
+    var LK = (opt.lamps === 1) ? 1.7 : 1; if (opt.lamps === 1) { lampB.visible = false; lampC.visible = false; }   // single-lamp variant: only lampA lights the room
     var moon = new THREE.DirectionalLight(0x5a70b0, 0.05); moon.position.set(W / 2 + 2, 3, -0.2); moon.target.position.set(0, 0.5, 0); group.add(moon, moon.target);
     group.add(new THREE.HemisphereLight(0x4a5470, 0x100c0a, 0.05));
 
@@ -345,7 +355,7 @@
     var figTex = canvasTex(128, 320, function (g, w, h) { g.fillStyle = '#000'; g.beginPath(); g.arc(64, 38, 24, 0, 6.283); g.fill(); g.fillRect(36, 58, 56, 150); g.fillRect(24, 62, 14, 130); g.fillRect(90, 62, 14, 130); g.fillRect(40, 200, 20, 120); g.fillRect(68, 200, 20, 120); g.fillStyle = 'rgba(200,20,10,0.9)'; g.fillRect(52, 34, 6, 4); g.fillRect(70, 34, 6, 4); });
     var fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; group.add(fig);
     group.userData.camX = 0; group.userData.camZ = 0;
-    function setLights(v, v3) { lampA.intensity = 0.34 * v; lampB.intensity = 0.3 * v; lampC.intensity = 0.22 * v * v3; var c = 0.04 + 0.5 * v; tubeMat.color.setScalar(c); tubeMat2.color.setScalar(c); tubeMat3.color.setScalar(0.04 + 0.5 * v * v3); if (A) A.buzz.gain.value = 0.012 * (v > 0.5 ? 1 : 0.15); }
+    function setLights(v, v3) { lampA.intensity = 0.34 * v * LK; lampB.intensity = 0.3 * v; lampC.intensity = 0.22 * v * v3; var c = 0.04 + 0.5 * v; tubeMat.color.setScalar(c); tubeMat2.color.setScalar(c); tubeMat3.color.setScalar(0.04 + 0.5 * v * v3); if (A) A.buzz.gain.value = 0.012 * (v > 0.5 ? 1 : 0.15); }
     flick.push(function (dt) {
       if (group.userData.freeze) { setLights(1, 1); if (group.userData.showFig) { fig.position.set(-0.6, 0.85, 1.2); fig.rotation.y = Math.atan2(group.userData.camX + 0.6, group.userData.camZ - 1.2); fig.visible = true; } else fig.visible = false; return; }
       var v = 1, v3 = 1; gap -= dt; indep -= dt; if (indep <= 0 && black <= 0 && burst <= 0) { v3 = Math.random() < 0.5 ? 0.1 : 1; if (indep < -0.25) indep = 1 + Math.random() * 5; }
