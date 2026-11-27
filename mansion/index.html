@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Mansion exterior preview</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Tahoma,Arial,sans-serif;color:#eee;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:0;right:0;top:calc(8px + env(safe-area-inset-top));text-align:center;font-size:13px;opacity:.75;pointer-events:none;text-shadow:0 1px 4px #000}
+#lab{position:fixed;left:0;right:0;top:calc(50% + 22px);text-align:center;font-size:17px;color:#ffe9b0;text-shadow:0 1px 6px #000;pointer-events:none;min-height:24px}
+#load{position:fixed;inset:0;background:#050403;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s;z-index:5}
+#load i{display:block;width:220px;height:3px;background:#222;margin-top:14px}#load b{display:block;height:3px;width:0;background:#c9a96a}
+.stick{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));width:120px;height:120px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);display:none}
+.stick i{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3)}
+button{position:fixed;font-size:15px;color:#fff;border-radius:22px;border:2px solid rgba(255,230,170,.7);background:rgba(120,30,20,.45);padding:8px 16px}
+#mode{right:calc(14px + env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom))}
+#act{right:calc(14px + env(safe-area-inset-right));bottom:calc(80px + env(safe-area-inset-bottom));display:none}
+body.walk .stick{display:block}
+</style></head><body>
+<div id="load"><div id="lt">جارٍ تحميل مجسم القصر...</div><i><b id="lb"></b></i></div>
+<canvas id="c"></canvas><div id="lab"></div><div id="hud">اسحب للدوران · اقرص للتقريب · زر «مشي» للتجول عند البوابة · اضغط الباب الأمامي لفتحه</div>
+<div class="stick" id="stick"><i id="knob"></i></div><button id="act">فتح الباب</button><button id="mode">مشي</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="mansion.js"></script>
+<script>
+(function () {
+  var P = new URLSearchParams(location.search), q = P.get('q') === '2k' ? '2k' : '1k';
+  var cv = document.getElementById('c'), R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+  R.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5)); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.15;
+  R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+  var scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(55, 1, 0.1, 400); cam.rotation.order = 'YXZ';
+  var K = MansionModule.build(THREE, { quality: q, renderer: R, onProgress: function (d, t) { document.getElementById('lb').style.width = Math.round(d / t * 100) + '%'; } });
+  scene.background = new THREE.Color(K.fog.color); scene.fog = new THREE.FogExp2(K.fog.color, K.fog.density); scene.add(K.group);
+  var mode = 'orbit', orb = { yaw: P.get('yaw') ? +P.get('yaw') * Math.PI / 180 : 0.55, pitch: 0.2, dist: 44, auto: true }, st = { x: K.spawn.x, z: K.spawn.z, yaw: 0, pitch: 0 }, free = null;
+  function resize() { var w = innerWidth, h = innerHeight; R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); } addEventListener('resize', resize); resize();
+  var pts = {}, joy = { x: 0, y: 0 }, ray = new THREE.Raycaster();
+  cv.addEventListener('pointerdown', function (e) { cv.setPointerCapture(e.pointerId); pts[e.pointerId] = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; orb.auto = false; if (K.audio) K.audio.start(); });
+  cv.addEventListener('pointermove', function (e) { var p = pts[e.pointerId]; if (!p) return; var dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; var ids = Object.keys(pts);
+    if (ids.length === 2 && mode === 'orbit') { var o = pts[ids[0] == e.pointerId ? ids[1] : ids[0]], d0 = Math.hypot(p.x - dx - o.x, p.y - dy - o.y), d1 = Math.hypot(p.x - o.x, p.y - o.y); orb.dist = Math.max(14, Math.min(90, orb.dist * d0 / Math.max(1, d1))); return; }
+    if (mode === 'orbit') { orb.yaw -= dx * 0.006; orb.pitch = Math.max(-0.05, Math.min(1.2, orb.pitch + dy * 0.005)); } else { st.yaw -= dx * 0.005; st.pitch = Math.max(-1.2, Math.min(1.2, st.pitch - dy * 0.005)); } });
+  function up(e) { var p = pts[e.pointerId]; delete pts[e.pointerId]; if (p && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8) tapAt(e.clientX, e.clientY); }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', function (e) { delete pts[e.pointerId]; });
+  cv.addEventListener('wheel', function (e) { orb.dist = Math.max(14, Math.min(90, orb.dist * (1 + e.deltaY * 0.001))); orb.auto = false; });
+  function tapAt(x, y) { ray.setFromCamera({ x: x / innerWidth * 2 - 1, y: -(y / innerHeight) * 2 + 1 }, cam); var it = K.pick(ray, mode === 'walk' ? 5 : 80); if (it) K.use(it); }
+  document.getElementById('mode').onclick = function () { mode = mode === 'orbit' ? 'walk' : 'orbit'; document.body.classList.toggle('walk', mode === 'walk'); document.getElementById('act').style.display = mode === 'walk' ? 'block' : 'none'; this.textContent = mode === 'walk' ? 'جولة' : 'مشي'; if (mode === 'walk') { st.x = K.spawn.x; st.z = K.spawn.z; st.yaw = 0; st.pitch = 0.05; } };
+  document.getElementById('act').onclick = function () { K.use(K.interactives[0]); };
+  var stick = document.getElementById('stick'), knob = document.getElementById('knob'), sid = null;
+  stick.addEventListener('pointerdown', function (e) { sid = e.pointerId; stick.setPointerCapture(sid); mv(e); }); stick.addEventListener('pointermove', function (e) { if (e.pointerId === sid) mv(e); }); stick.addEventListener('pointerup', function () { sid = null; joy.x = joy.y = 0; knob.style.left = knob.style.top = '40px'; });
+  function mv(e) { var r = stick.getBoundingClientRect(), dx = (e.clientX - r.left - 60) / 50, dy = (e.clientY - r.top - 60) / 50, l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } joy.x = dx; joy.y = -dy; knob.style.left = (40 + dx * 40) + 'px'; knob.style.top = (40 + dy * 40) + 'px'; }
+  var keys = {}; addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyE') K.use(K.interactives[0]); }); addEventListener('keyup', function (e) { keys[e.code] = 0; });
+  function collide(nx, nz) { var b = K.bounds, r = 0.3; nx = Math.max(b.minX, Math.min(b.maxX, nx)); nz = Math.max(b.minZ, Math.min(b.maxZ, nz)); for (var i = 0; i < K.colliders.length; i++) { var c = K.colliders[i]; if (nx > c.minX - r && nx < c.maxX + r && nz > c.minZ - r && nz < c.maxZ + r) return null; } return [nx, nz]; }
+  var last = 0;
+  function frame(t) {
+    requestAnimationFrame(frame); var dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016; last = t;
+    if (free) { cam.position.set(free.x, free.y, free.z); cam.rotation.set(free.pitch, free.yaw, 0); }
+    else if (mode === 'orbit') { if (orb.auto) orb.yaw += dt * 0.06; var c = K.center; cam.position.set(c.x + Math.sin(orb.yaw) * Math.cos(orb.pitch) * orb.dist, c.y + 1 + Math.sin(orb.pitch) * orb.dist, c.z + Math.cos(orb.yaw) * Math.cos(orb.pitch) * orb.dist); cam.lookAt(c.x, c.y, c.z); }
+    else { var f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + joy.y, s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x, sp = 3.0 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp; var a = collide(st.x + dx, st.z); if (a) st.x = a[0]; var b = collide(st.x, st.z + dz); if (b) st.z = b[1]; cam.position.set(st.x, 1.7, st.z); cam.rotation.set(st.pitch, st.yaw, 0);
+      ray.setFromCamera({ x: 0, y: 0 }, cam); var it = K.pick(ray, 4); document.getElementById('lab').textContent = it ? 'اضغط: الباب الأمامي' : ''; }
+    K.update(dt); R.render(scene, cam); frame.n = (frame.n || 0) + 1;
+  }
+  window.KP = { K: K, cam: cam, R: R, ready: false, view: function (x, y, z, yawDeg, pitchDeg) { free = { x: x, y: y, z: z, yaw: yawDeg * Math.PI / 180, pitch: pitchDeg * Math.PI / 180 }; }, orbit: function (yawDeg, pitch, dist) { free = null; orb.auto = false; orb.yaw = yawDeg * Math.PI / 180; orb.pitch = pitch; orb.dist = dist; }, info: function () { return JSON.stringify({ calls: R.info.render.calls, tris: R.info.render.triangles, frames: frame.n }); } };
+  requestAnimationFrame(frame);
+  var chk = setInterval(function () { if (K.progress.done >= K.progress.total) { clearInterval(chk); window.KP.ready = true; setTimeout(function () { var l = document.getElementById('load'); l.style.opacity = 0; setTimeout(function () { l.style.display = 'none'; }, 700); }, 300); } }, 200);
+})();
+</script></body></html>
