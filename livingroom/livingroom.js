@@ -220,10 +220,15 @@
     // ---------- grandfather clock (right of the fireplace) with a swinging pendulum behind a glass door ----------
     var pend;
     (function () {
-      var g = wallGroup(2.7, bz, 0); box(0.5, 0.3, 0.32, mWood, 0, 0.15, 0.17, g); box(0.4, 1.35, 0.3, mCarc, 0, 0.98, 0.17, g); box(0.5, 0.45, 0.34, mWood, 0, 1.88, 0.17, g); box(0.56, 0.06, 0.38, mWood, 0, 2.14, 0.17, g);
+      var g = wallGroup(2.7, bz, 0); box(0.5, 0.3, 0.32, mWood, 0, 0.15, 0.17, g); carcass(g, 0.42, 1.35, 0.3, mCarc, 0, 0.98, 0.17); box(0.5, 0.45, 0.34, mWood, 0, 1.88, 0.17, g); box(0.56, 0.06, 0.38, mWood, 0, 2.14, 0.17, g);
       var face = new THREE.Mesh(new THREE.CircleGeometry(0.17, 24), new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, function (c) { c.fillStyle = '#b8ae90'; c.fillRect(0, 0, 128, 128); c.strokeStyle = '#201810'; c.lineWidth = 4; for (var i = 0; i < 12; i++) { var a = i / 12 * 6.283; c.beginPath(); c.moveTo(64 + Math.sin(a) * 50, 64 - Math.cos(a) * 50); c.lineTo(64 + Math.sin(a) * 58, 64 - Math.cos(a) * 58); c.stroke(); } c.lineWidth = 5; c.beginPath(); c.moveTo(64, 64); c.lineTo(64, 24); c.moveTo(64, 64); c.lineTo(92, 78); c.stroke(); }) })); face.position.set(0, 1.88, 0.347); g.add(face);
-      pend = new THREE.Group(); pend.position.set(0, 1.5, 0.2); g.add(pend); box(0.012, 0.6, 0.012, mBrass, 0, -0.3, 0, pend, false); cyl(0.07, 0.07, 0.015, mBrass, 0, -0.62, 0, pend, 16).rotation.x = Math.PI / 2;
-      door('clockDoor', 'باب الساعة', 0.34, 1.0, 0.015, mDoorM, -0.17, 0.98, 0.34, 'left', 'v', g, 'knob-top'); solid(2.4, 3.05, bz, bz + 0.5);
+      pend = new THREE.Group(); pend.position.set(0, 1.55, 0.2); g.add(pend); box(0.012, 0.7, 0.012, mBrass, 0, -0.35, 0, pend, false); cyl(0.085, 0.085, 0.02, mBrass, 0, -0.72, 0, pend, 18).rotation.x = Math.PI / 2;
+      [-0.1, 0.1].forEach(function (x, i) { box(0.006, 0.5, 0.006, mBrass, x, 1.3, 0.12, g, false); cyl(0.03, 0.03, 0.22 - i * 0.04, mBrass, x, 0.95 - i * 0.1, 0.12, g, 10); });
+      var inL = new THREE.PointLight(0xffc070, 0.25, 1.6, 2); inL.position.set(0, 1.2, 0.3); g.add(inL);
+      var mGl = new THREE.MeshStandardMaterial({ color: 0x2a3a30, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.28, depthWrite: false });
+      var cd = door('clockDoor', 'باب الساعة', 0.38, 1.25, 0.012, mGl, -0.19, 0.98, 0.34, 'left', 'v', g, 'knob-top'); var dm = cd.mesh;
+      [[0, 0.615, 0.38, 0.03], [0, -0.615, 0.38, 0.03], [-0.175, 0, 0.03, 1.25], [0.175, 0, 0.03, 1.25]].forEach(function (f) { box(f[2], f[3], 0.02, mWood, f[0], f[1], 0, dm, false); });
+      solid(2.4, 3.05, bz, bz + 0.5);
     })();
     // ---------- bookshelf with books (back wall, left) and a cabinet below ----------
     (function () {
