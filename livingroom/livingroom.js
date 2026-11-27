@@ -6,6 +6,7 @@
  *   B.use(interactive)           // what a tap / E press does: opens doors and drawers, switches the TV
  *   B.interactives, B.pick(raycaster, maxDist), B.colliders, B.bounds, B.spawn {x,z,yaw}, B.setCamera(x,z)
  *   B.audio.start()              // from a user gesture; procedural sound, no files: room tone, clock, heartbeat (when scared), creaks, whispers, bell, footsteps
+ * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0): damaged_plaster (upper walls, ceiling), dark_wood (floor, wainscot).  Everything else is generated in code.
  */
 (function (root) {
@@ -149,7 +150,14 @@
 
     var curt = [];
     // ---------- materials ----------
-    var mFloor = pbr(TEX.floor, 1, 1, 0x4a3a2c), mPlaster = pbr(TEX.wall, 1, 1, 0x8d887e), mWain = pbr(TEX.wain, 1, 1, 0x3a2c22), mCeil = pbr(TEX.ceil, 1, 1, 0x55524c), mWood = pbr(TEX.wood, 1, 1, 0x4a3020);
+    // checkerboard floor: dirty off-white / near-black cyan, flat colours, one square = opt.checkerSize metres (default 0.5)
+    function checkerMat(surfW, surfH) {
+      var S = opt.checkerSize || 0.5, c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d');
+      g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(256, 0, 256, 256); g.fillRect(0, 256, 256, 256);
+      var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(surfW / (2 * S), surfH / (2 * S)); t.anisotropy = Math.min(16, maxAniso); t.encoding = THREE.sRGBEncoding; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0, envMapIntensity: 0.1 });
+    }
+    var mFloor = checkerMat(1, 1), mPlaster = pbr(TEX.wall, 1, 1, 0x8d887e), mWain = pbr(TEX.wain, 1, 1, 0x3a2c22), mCeil = pbr(TEX.ceil, 1, 1, 0x55524c), mWood = pbr(TEX.wood, 1, 1, 0x4a3020);
     var mDoorM = std(aged(81, '#3a2c22', { rust: 0, dark: 1.3 }), { rough: 0.8 });
     function fabric(seed, base) { return std(aged(seed, base, { rust: 0, dark: 1.2 }), { rough: 0.95 }); }
     var mSofa = fabric(201, '#5a4034'), mCush = fabric(203, '#6a4a3a'), mArm = fabric(205, '#3e4a40'), mRug = fabric(111, '#4a2a2a'), mCurt = fabric(121, '#4a2e30'), mDark = new THREE.MeshStandardMaterial({ color: 0x120e0c, roughness: 0.95 });
