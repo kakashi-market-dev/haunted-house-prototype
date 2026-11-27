@@ -7,6 +7,7 @@
  *   B.hiding  (bool)  B.hideSpot {x,y,z,yaw}  B.exitSpot {x,z}      // while hiding the host places the camera at hideSpot and blocks walking
  *   B.interactives, B.pick(raycaster, maxDist), B.colliders, B.bounds, B.spawn {x,z,yaw}, B.bedSpot {x,y,z} (where the player lies when waking up), B.setCamera(x,z)
  *   B.audio.start()              // from a user gesture; procedural sound, no files: room tone, clock, heartbeat (when scared), creaks, whispers, bell, footsteps
+ * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
  * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0): damaged_plaster (upper walls, ceiling), dark_wood (floor, wainscot).  Everything else is generated in code.
  */
@@ -25,6 +26,7 @@
 
   function build(THREE, opt) {
     opt = opt || {};
+    var FIG = opt.figures === true;   // human-like figures (dolls, portraits, flicker figure, visitor) are OFF unless { figures: true }
     var q = opt.quality || '2k'; if (opt.floorTexSize) TEX.floor.size = opt.floorTexSize; if (opt.wallTexSize) TEX.wall.size = opt.wallTexSize; 
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 4;
     var group = new THREE.Group(); group.name = 'bedroom';
@@ -179,7 +181,7 @@
     [[W, 0, -D / 2 + 0.012, 0], [D, -W / 2 + 0.012, 0, Math.PI / 2], [D, W / 2 - 0.012, 0, Math.PI / 2]].forEach(function (s) { var c = box(s[0], 0.05, 0.03, mTrim, s[1], WH, s[2], null, false); c.rotation.y = s[3]; });
     door('door', 'الباب', dw - 0.02, dh, 0.045, mDoorM, dx + dw / 2, dh / 2, D / 2 - 0.02, 'right', 'v', null, 'bar-v', { rev: true, ajar: 0.1 });
     var bz = -D / 2, lz = -W / 2, rz = W / 2;
-    function doll(x, y, z, ry, tilt, parent) { var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; (parent || group).add(g); var mD = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDr = fabric(73, '#5a4a52');
+    function doll(x, y, z, ry, tilt, parent) { if (!FIG) return new THREE.Group(); var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; (parent || group).add(g); var mD = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDr = fabric(73, '#5a4a52');
       var body = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.2, 10), mDr); body.position.y = 0.1; g.add(body);
       var head = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 12), mD); head.position.y = 0.26; head.rotation.z = tilt; g.add(head);
       [-0.022, 0.022].forEach(function (ex) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), mDark); e.position.set(ex, 0.012, 0.052); head.add(e); });
@@ -263,7 +265,7 @@
       box(1.0, 0.05, 0.08, mTrim, 0, 2.2, 0.05, wg); box(1.0, 0.05, 0.1, mTrim, 0, 1.0, 0.06, wg); box(0.05, 1.2, 0.08, mTrim, -0.48, 1.6, 0.05, wg); box(0.05, 1.2, 0.08, mTrim, 0.48, 1.6, 0.05, wg); box(0.03, 1.15, 0.04, mTrim, 0, 1.6, 0.04, wg); box(0.9, 0.03, 0.04, mTrim, 0, 1.6, 0.04, wg);
       var ct = fabric(121, '#4a2e30'); [-0.42, 0.42].forEach(function (x) { var c = box(0.38, 1.5, 0.05, ct, x, 1.55, 0.14, wg, false); curt.push(c); });
       box(1.3, 0.02, 0.02, mHandle, 0, 2.32, 0.14, wg, false);
-      var pic = function (x, y, w, h, seed, rot, par, z) { var t = canvasTex(96, 128, function (c, ww, hh) { var r = rnd(seed); c.fillStyle = '#8a7e62'; c.fillRect(0, 0, ww, hh); for (var i = 0; i < 30; i++) { c.fillStyle = 'rgba(' + (30 + r() * 40 | 0) + ',' + (25 + r() * 30 | 0) + ',20,0.35)'; c.fillRect(r() * ww, r() * hh, 10 + r() * 30, 8 + r() * 25); } c.fillStyle = 'rgba(25,18,12,0.75)'; c.beginPath(); c.arc(48, 52, 17, 0, 6.283); c.fill(); c.fillRect(31, 66, 34, 60); }); var f = box(w + 0.05, h + 0.05, 0.03, mTrim, x, y, z, par, false); f.rotation.z = rot; var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); p.position.set(0, 0, 0.017); f.add(p); return f; };
+      var pic = function (x, y, w, h, seed, rot, par, z) { var t = canvasTex(96, 128, function (c, ww, hh) { var r = rnd(seed); c.fillStyle = '#8a7e62'; c.fillRect(0, 0, ww, hh); for (var i = 0; i < 30; i++) { c.fillStyle = 'rgba(' + (30 + r() * 40 | 0) + ',' + (25 + r() * 30 | 0) + ',20,0.35)'; c.fillRect(r() * ww, r() * hh, 10 + r() * 30, 8 + r() * 25); } if (FIG) { c.fillStyle = 'rgba(25,18,12,0.75)'; c.beginPath(); c.arc(48, 52, 17, 0, 6.283); c.fill(); c.fillRect(31, 66, 34, 60); } }); var f = box(w + 0.05, h + 0.05, 0.03, mTrim, x, y, z, par, false); f.rotation.z = rot; var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })); p.position.set(0, 0, 0.017); f.add(p); return f; };
       pic(-0.35, 1.7, 0.3, 0.4, 5, 0, null, bz + 0.03); pic(-1.0, 1.95, 0.26, 0.34, 9, 0.18, null, bz + 0.03);
       var rg = wallGroup(rz, 0.7, -Math.PI / 2); pic(0, 1.6, 0.34, 0.44, 13, 0, rg, 0.03); box(1.0, 0.03, 0.2, mWood, 0, 1.25, 0.1, rg); [-0.3, -0.12, 0.05, 0.2, 0.34].forEach(function (x, i) { var b = box(0.05, 0.2 - (i % 2) * 0.03, 0.14, canMats[i + 2], x, 1.36 - (i % 2) * 0.015, 0.1, rg, false); }); doll(0.38, 1.265, 0.1, -0.3, 0.2, rg).scale.setScalar(0.8);
       var rug = box(2.2, 0.012, 1.5, mRug, -0.2, 0.008, 0.2, null, false); rug.rotation.y = 0.08;
@@ -281,7 +283,7 @@
     function cobweb(x, y, z, ry, sx, s) { var m = decal(web, s, s, x, y, z, ry, 0, 0.85); m.scale.set(sx, 1, 1); m.position.x += sx * s / 2 * Math.cos(ry); m.position.z += -sx * s / 2 * Math.sin(ry); m.position.y -= s / 2; }
     cobweb(-W / 2 + 0.01, H - 0.01, bz + 0.012, 0, 1, 0.9); cobweb(W / 2 - 0.01, H - 0.01, bz + 0.012, 0, -1, 0.8); cobweb(-W / 2 + 0.012, H - 0.01, D / 2 - 0.01, Math.PI / 2, 1, 0.7);
     var drw = decalTex(256, 160, function (g) { g.fillStyle = '#a89c78'; g.fillRect(0, 0, 256, 160); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; [[50, 90], [128, 85], [206, 95]].forEach(function (p, i) { g.beginPath(); g.arc(p[0], p[1] - 30, 14, 0, 6.283); g.moveTo(p[0], p[1] - 16); g.lineTo(p[0], p[1] + 30); g.moveTo(p[0], p[1]); g.lineTo(p[0] - 22, p[1] + 14); g.moveTo(p[0], p[1]); g.lineTo(p[0] + 22, p[1] + 14); g.moveTo(p[0], p[1] + 30); g.lineTo(p[0] - 14, p[1] + 55); g.moveTo(p[0], p[1] + 30); g.lineTo(p[0] + 14, p[1] + 55); g.stroke(); }); g.fillStyle = '#6a0e0e'; g.fillRect(118, 52, 6, 6); g.fillRect(132, 52, 6, 6); });
-    decal(drw, 0.42, 0.26, -W / 2 + 0.01, 1.7, 0.1 - 1.4, Math.PI / 2, 0, 1);
+    if (FIG) decal(drw, 0.42, 0.26, -W / 2 + 0.01, 1.7, 0.1 - 1.4, Math.PI / 2, 0, 1);
 
     // ---------- lights: warm bedside lamp (shadows), cold moonlight through the window, very low fill. Calm mood, no blackouts ----------
     var shMap = q === '1k' ? 512 : 1024;
@@ -328,7 +330,7 @@
     var vstate = { phase: 0, t: 0, path: [], i: 0, wait: 0, walkT: 0, stepT: 0, cool: 0 };
     var inPath = [[dx, D / 2 + 0.4], [dx, D / 2 - 0.5], [0.3, 1.0], [-0.9, 0.35], [-1.25, -0.05]];
     var outPath = [[0.2, 0.9], [dx, D / 2 - 0.5], [dx, D / 2 + 0.6]];
-    function visitStart() { vstate.phase = 1; vstate.path = inPath; vstate.i = 0; vis.position.set(inPath[0][0], 0, inPath[0][1]); vis.visible = true; audio.setFear(0.45); }
+    function visitStart() { if (!FIG) return; vstate.phase = 1; vstate.path = inPath; vstate.i = 0; vis.position.set(inPath[0][0], 0, inPath[0][1]); vis.visible = true; audio.setFear(0.45); }
     function visitStop() { vstate.phase = 0; vis.visible = false; vstate.cool = 25; audio.setFear(hiding ? 0.3 : 0.15); }
     function visitUpdate(dt) {
       if (vstate.phase === 0) { return; }
