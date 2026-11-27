@@ -10,6 +10,7 @@
  *   B.audio.start()             // call from a user gesture; procedural sound (no audio files): drone, flicker buzz, heartbeat, drips, creaks, stingers
  *   B.audio.setFear(0..1) / B.audio.stinger() / B.audio.creak()
  * Option lamps: 1 -> single-lamp variant (one ceiling lamp, default keeps the three lamps).
+ * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
  * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0) loaded lazily from dl.polyhaven.org: brown_floor_tiles (floor), long_white_tiles (tinted dark grey-green, lower walls), damaged_plaster (upper walls, ceiling), dark_wood.
  * Everything else (tub, toilet, props, grime, cracks, blood, cobwebs) is generated in code.
@@ -29,6 +30,7 @@
 
   function build(THREE, opt) {
     opt = opt || {};
+    var FIG = opt.figures === true;   // human-like figures (dolls, portraits, flicker figure, visitor) are OFF unless { figures: true }
     var q = opt.quality || '2k'; if (opt.floorTexSize) TEX.floor.size = opt.floorTexSize; if (opt.wallTexSize) TEX.wall.size = opt.wallTexSize; if (opt.tileTexSize) TEX.tiles.size = opt.tileTexSize;
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 4;
     var group = new THREE.Group(); group.name = 'bathroom';
@@ -195,7 +197,7 @@
       cyl(0.02, 0.02, 0.2, mHandle, tbx - tl / 2 + 0.14, th + 0.1, bz + 0.1); var sp = box(0.03, 0.03, 0.14, mHandle, tbx - tl / 2 + 0.14, th + 0.2, bz + 0.17, null, false);
       var yel = new THREE.MeshStandardMaterial({ color: 0xb8a030, roughness: 0.4 }); var db = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), yel); db.scale.set(1, 0.8, 1.2); db.position.set(tbx + 0.35, 0.39, tbz + 0.08); group.add(db);
       var dh2 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), yel); dh2.position.set(tbx + 0.35, 0.45, tbz + 0.14); group.add(dh2); box(0.03, 0.012, 0.03, new THREE.MeshStandardMaterial({ color: 0x8a4a10 }), tbx + 0.35, 0.445, tbz + 0.18, null, false);
-      var arm = cyl(0.025, 0.02, 0.4, mDoll0(), tbx - 0.3, 0.37, tbz - 0.05); arm.rotation.z = 1.3; arm.rotation.y = 0.4; [-0.03, -0.01, 0.01, 0.03].forEach(function (o, i) { var f = cyl(0.006, 0.006, 0.07, mDoll0(), tbx - 0.12 + i * 0.002, 0.405, tbz - 0.07 + o, null, 5); f.rotation.z = 1.3 + i * 0.05; });
+      if (FIG) { var arm = cyl(0.025, 0.02, 0.4, mDoll0(), tbx - 0.3, 0.37, tbz - 0.05); arm.rotation.z = 1.3; arm.rotation.y = 0.4; [-0.03, -0.01, 0.01, 0.03].forEach(function (o, i) { var f = cyl(0.006, 0.006, 0.07, mDoll0(), tbx - 0.12 + i * 0.002, 0.405, tbz - 0.07 + o, null, 5); f.rotation.z = 1.3 + i * 0.05; }); }
       var rod = cyl(0.012, 0.012, tl + 0.15, mHandle, tbx, 1.95, tbz + tw / 2 + 0.05); rod.rotation.z = Math.PI / 2;
       var ct = canvasTex(256, 512, function (g, w, h) { var r = rnd(5); g.fillStyle = '#566456'; g.fillRect(0, 0, w, h); for (var f = 0; f < 10; f++) { var gr = g.createLinearGradient(f * 26, 0, f * 26 + 26, 0); gr.addColorStop(0, 'rgba(0,0,0,0.0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(f * 26, 0, 26, h); }
         for (var i = 0; i < 40; i++) { var x = r() * w, y = r() * h, rad = 10 + r() * 40, b = g.createRadialGradient(x, y, 0, x, y, rad); b.addColorStop(0, 'rgba(20,20,10,' + (0.2 + r() * 0.3) + ')'); b.addColorStop(1, 'rgba(20,20,10,0)'); g.fillStyle = b; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
@@ -353,7 +355,7 @@
     // ---------- flicker, blackouts and the figure ----------
     var burst = 0, gap = 3, black = 0, figT = 0, scareCb = opt.onScare, indep = 0, figSpots = [[-2.0, bz + 0.5], [0.2, 1.4], [3.0, 0.3], [-2.9, 2.1]];
     var figTex = canvasTex(128, 320, function (g, w, h) { g.fillStyle = '#000'; g.beginPath(); g.arc(64, 38, 24, 0, 6.283); g.fill(); g.fillRect(36, 58, 56, 150); g.fillRect(24, 62, 14, 130); g.fillRect(90, 62, 14, 130); g.fillRect(40, 200, 20, 120); g.fillRect(68, 200, 20, 120); g.fillStyle = 'rgba(200,20,10,0.9)'; g.fillRect(52, 34, 6, 4); g.fillRect(70, 34, 6, 4); });
-    var fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; group.add(fig);
+    var fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; if (FIG) group.add(fig);
     group.userData.camX = 0; group.userData.camZ = 0;
     function setLights(v, v3) { lampA.intensity = 0.34 * v * LK; lampB.intensity = 0.3 * v; lampC.intensity = 0.22 * v * v3; var c = 0.04 + 0.5 * v; tubeMat.color.setScalar(c); tubeMat2.color.setScalar(c); tubeMat3.color.setScalar(0.04 + 0.5 * v * v3); if (A) A.buzz.gain.value = 0.012 * (v > 0.5 ? 1 : 0.15); }
     flick.push(function (dt) {
