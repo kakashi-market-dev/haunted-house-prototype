@@ -28,7 +28,7 @@ body.desk .stick,body.desk #act{display:none}
   R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
   var scene = new THREE.Scene(); scene.background = new THREE.Color(0x050405);
   var cam = new THREE.PerspectiveCamera(70, 1, 0.05, 30); cam.rotation.order = 'YXZ';
-  var K = KitchenModule.build(THREE, { quality: q, renderer: R, floorTexSize: P.get('floor') ? +P.get('floor') : undefined, onProgress: function (d, t) { document.getElementById('lb').style.width = (100 * d / t) + '%'; } });
+  var K = KitchenModule.build(THREE, { figures: P.get('figures') === '1', quality: q, renderer: R, floorTexSize: P.get('floor') ? +P.get('floor') : undefined, onProgress: function (d, t) { document.getElementById('lb').style.width = (100 * d / t) + '%'; } });
   scene.add(K.group);
   var torch = new THREE.SpotLight(0xfff0d0, 1.6, 8, 0.5, 0.65, 2); torch.position.set(0.1, -0.1, 0); torch.target.position.set(0, 0, -1); cam.add(torch, torch.target); scene.add(cam); // flashlight, F toggles
   function audioOn() { K.enableAudio(); } addEventListener('pointerdown', audioOn, { once: true }); addEventListener('keydown', audioOn, { once: true });
