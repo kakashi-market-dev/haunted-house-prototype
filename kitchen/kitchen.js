@@ -10,7 +10,7 @@
  *   K.bounds  -> {minX,maxX,minZ,maxZ,height}; K.spawn -> {x,z,yaw} suggested player start; K.exitDoor -> {x,z} doorway centre
  * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
  * Option wallClock: true -> pale round wall clock above the shelves (default off, it read as a face).
- * Floor: checkerboard, square size opt.checkerSize (metres, default 0.25).
+ * Floor: checkerboard near-black / dark green, square size opt.checkerSize (metres, default 0.25), colours opt.checkerColorA / opt.checkerColorB (CSS strings).
  * Textures: Poly Haven (CC0) for floor/walls/tiles/wood, loaded lazily from dl.polyhaven.org; plain colours until they arrive or if offline.
  * Fixtures (fridge, stove, rusty steel, grime, cobwebs, cracks, blood) are drawn procedurally in canvases, nothing else is downloaded.
  */
@@ -55,10 +55,10 @@
       tex('rough', false, function (t) { m.roughnessMap = t; m.roughness = 1; });
       return m;
     }
-    // checkerboard floor: dirty off-white / near-black cyan, flat colours, one square = opt.checkerSize metres (default 0.25)
+    // checkerboard floor: near-black / dark green (opt.checkerColorA, opt.checkerColorB), flat colours, one square = opt.checkerSize metres (default 0.25)
     function checkerMat(surfW, surfH) {
       var S = opt.checkerSize || 0.25, c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d');
-      g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(256, 0, 256, 256); g.fillRect(0, 256, 256, 256);
+      g.fillStyle = opt.checkerColorA || '#060806'; g.fillRect(0, 0, 512, 512); g.fillStyle = opt.checkerColorB || '#134d24'; g.fillRect(256, 0, 256, 256); g.fillRect(0, 256, 256, 256);
       var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(surfW / (2 * S), surfH / (2 * S)); t.anisotropy = Math.min(16, maxAniso); t.encoding = THREE.sRGBEncoding; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
       return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0, envMapIntensity: 0.1 });
     }
