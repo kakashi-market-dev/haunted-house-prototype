@@ -8,6 +8,7 @@
  *   K.toggle('oven'); K.open(name) / K.close(name); K.interactives  // [{name,label,object,open}]
  *   K.pick(raycaster)  -> interactive under the ray (or null);  K.colliders -> AABBs [{minX,maxX,minZ,maxZ}] for player collision
  *   K.bounds  -> {minX,maxX,minZ,maxZ,height}; K.spawn -> {x,z,yaw} suggested player start; K.exitDoor -> {x,z} doorway centre
+ * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0) for floor/walls/tiles/wood, loaded lazily from dl.polyhaven.org; plain colours until they arrive or if offline.
  * Fixtures (fridge, stove, rusty steel, grime, cobwebs, cracks, blood) are drawn procedurally in canvases, nothing else is downloaded.
  */
@@ -51,7 +52,14 @@
       tex('rough', false, function (t) { m.roughnessMap = t; m.roughness = 1; });
       return m;
     }
-    var mFloor = pbr(TEX.floor, W, D, 0x8a6a48);
+    // checkerboard floor: dirty off-white / near-black cyan, flat colours, one square = opt.checkerSize metres (default 0.5)
+    function checkerMat(surfW, surfH) {
+      var S = opt.checkerSize || 0.5, c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d');
+      g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(256, 0, 256, 256); g.fillRect(0, 256, 256, 256);
+      var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(surfW / (2 * S), surfH / (2 * S)); t.anisotropy = Math.min(16, maxAniso); t.encoding = THREE.sRGBEncoding; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0, envMapIntensity: 0.1 });
+    }
+    var mFloor = checkerMat(W, D);
     var mWallA = pbr(TEX.wall, W, H, 0x8d887e), mWallB = pbr(TEX.wall, D, H, 0x8d887e), mWallC = pbr(TEX.wall, D, H, 0x8d887e);
     var mCeil = pbr(TEX.ceil, W, D, 0x55524c);
     var mBack = pbr(TEX.tiles, W, 0.62, 0xc8c4b6);
