@@ -8,6 +8,7 @@
  *   K.toggle('oven'); K.open(name) / K.close(name); K.interactives  // [{name,label,object,open}]
  *   K.pick(raycaster)  -> interactive under the ray (or null);  K.colliders -> AABBs [{minX,maxX,minZ,maxZ}] for player collision
  *   K.bounds  -> {minX,maxX,minZ,maxZ,height}; K.spawn -> {x,z,yaw} suggested player start; K.exitDoor -> {x,z} doorway centre
+ * Option figures: true -> dolls, wall portraits, flicker figure and visitor are built (default false: none of them).
  * Floor: checkerboard, square size opt.checkerSize (metres, default 0.5).
  * Textures: Poly Haven (CC0) for floor/walls/tiles/wood, loaded lazily from dl.polyhaven.org; plain colours until they arrive or if offline.
  * Fixtures (fridge, stove, rusty steel, grime, cobwebs, cracks, blood) are drawn procedurally in canvases, nothing else is downloaded.
@@ -27,6 +28,7 @@
 
   function build(THREE, opt) {
     opt = opt || {};
+    var FIG = opt.figures === true;   // human-like figures (dolls, portraits, flicker figure, visitor) are OFF unless { figures: true }
     var q = opt.quality || '2k'; if (opt.floorTexSize) TEX.floor.size = opt.floorTexSize; if (opt.wallTexSize) TEX.wall.size = opt.wallTexSize;
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 4;
     var group = new THREE.Group(); group.name = 'kitchen';
@@ -357,7 +359,7 @@
 
     // ---------- eerie props and details (v0.3) ----------
     var mDoll = std(aged(71, '#c9b9a2', { rust: 0, dark: 1.4 }), { rough: 0.8 }), mDress = std(aged(73, '#5a4a52', { rust: 0, dark: 1.6 }), { rough: 0.95 }), mEye = new THREE.MeshBasicMaterial({ color: 0x050505 });
-    function doll(x, y, z, ry, tilt) { var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; group.add(g);
+    function doll(x, y, z, ry, tilt) { if (!FIG) return new THREE.Group(); var g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; group.add(g);
       var body = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.2, 10), mDress); body.position.y = 0.1; g.add(body);
       var head = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 12), mDoll); head.position.y = 0.26; head.rotation.z = tilt; g.add(head);
       [-0.022, 0.022].forEach(function (ex) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), mEye); e.position.set(ex, 0.012, 0.052); head.add(e); });
@@ -373,7 +375,7 @@
     var msg = decalTex(512, 128, function (g, w, h) { g.fillStyle = 'rgba(95,6,6,0.9)'; g.font = 'bold 74px serif'; g.textAlign = 'center'; g.direction = 'rtl'; g.fillText('نامي يا صغيرتي', w / 2, 86); for (var i = 0; i < 9; i++) g.fillRect(40 + (i * 53) % 430, 70, 3, 20 + (i * 17) % 38); });
     decal(msg, 1.5, 0.375, 0.9, 2.0, D / 2 - 0.009, Math.PI, 0, 0.95);
     var drw = decalTex(128, 160, function (g, w, h) { g.fillStyle = '#9a8e6e'; g.fillRect(0, 0, w, h); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; g.beginPath(); g.arc(64, 50, 16, 0, 6.283); g.moveTo(64, 66); g.lineTo(64, 115); g.moveTo(64, 80); g.lineTo(38, 100); g.moveTo(64, 80); g.lineTo(90, 100); g.moveTo(64, 115); g.lineTo(46, 150); g.moveTo(64, 115); g.lineTo(84, 150); g.stroke(); g.fillStyle = '#7a0a0a'; g.fillRect(55, 45, 6, 6); g.fillRect(68, 45, 6, 6); g.fillRect(40, 20, 50, 4); });
-    decal(drw, 0.24, 0.3, W / 2 - 0.01, 1.5, 0.9, -Math.PI / 2, 0, 1); decal(drw, 0.2, 0.25, W / 2 - 0.01, 1.35, 1.25, -Math.PI / 2, 0, 1).rotation.z = 0.12;
+    if (FIG) { decal(drw, 0.24, 0.3, W / 2 - 0.01, 1.5, 0.9, -Math.PI / 2, 0, 1); decal(drw, 0.2, 0.25, W / 2 - 0.01, 1.35, 1.25, -Math.PI / 2, 0, 1).rotation.z = 0.12; }
     cyl(0.008, 0.008, 0.9, mRag, 0.5, H - 0.45, 0.0); (function () { var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0x050404, roughness: 1, metalness: 0 })); sh.position.set(0.5, 1.55, 0.0); group.add(sh); })();
     solid(0.45, 0.55, -0.05, 0.05);
 
@@ -388,7 +390,7 @@
     // fluorescent flicker with real blackouts; a dark figure shows for a split second when the light returns
     var burst = 0, gap = 3, black = 0, fig = null, figSpots = [[-2.1, 1.7], [2.3, -0.9], [0.6, -1.6]], figT = 0, scareCb = opt.onScare, A = null;
     var figTex = canvasTex(128, 320, function (g, w, h) { g.fillStyle = '#000'; g.beginPath(); g.arc(64, 38, 24, 0, 6.283); g.fill(); g.fillRect(36, 58, 56, 150); g.fillRect(24, 62, 14, 130); g.fillRect(90, 62, 14, 130); g.fillRect(40, 200, 20, 120); g.fillRect(68, 200, 20, 120); g.fillStyle = 'rgba(200,20,10,0.9)'; g.fillRect(52, 34, 6, 4); g.fillRect(70, 34, 6, 4); });
-    fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; group.add(fig);
+    fig = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), new THREE.MeshBasicMaterial({ map: figTex, transparent: true, depthWrite: false })); fig.visible = false; fig.position.y = 0.85; if (FIG) group.add(fig);
     group.userData.camX = 0; group.userData.camZ = 0;
     function thump() { if (!A) return; var o = A.ctx.createOscillator(), g = A.ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(70, A.ctx.currentTime); o.frequency.exponentialRampToValueAtTime(28, A.ctx.currentTime + 0.5); g.gain.setValueAtTime(0.5, A.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, A.ctx.currentTime + 0.6); o.connect(g); g.connect(A.ctx.destination); o.start(); o.stop(A.ctx.currentTime + 0.7); }
     function enableAudio() { // call from a user gesture. Fluorescent hum + low drone; the hum follows the light.
